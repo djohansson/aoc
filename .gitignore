@@ -1,0 +1,5 @@
+# FASTBuild
+*.fdb
+
+# buildsystem
+build.*
