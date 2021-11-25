@@ -1,0 +1,158 @@
+#once
+
+.Clang_BaseConfig =
+[
+#if exists(LLVM)
+#import LLVM
+	.LLVMPath = '$LLVM$'
+#else
+#if __WINDOWS__
+	.LLVMPath = 'C:/Program Files/LLVM'
+#endif
+#if __OSX__
+	.LLVMPath = '/usr/local/opt/llvm'
+#endif
+#if __LINUX__
+	.LLVMPath = '/usr'
+#endif
+#endif // exists(LLVM)
+#if exists(LLVM_VERSION)
+#import LLVM_VERSION
+	.LLVMVersion = '$LLVM_VERSION$'
+#else
+	.LLVMVersion = '12.0.1'
+#endif // exists(LLVM_VERSION)
+	.Executable = '$LLVMPath$/bin/clang$ExeSuffix$'
+	.CompilerInfo = 'Clang'
+    .Librarian = '$LLVMPath$/bin/llvm-ar$ExeSuffix$'
+	.Linker = '$LLVMPath$/bin/clang$ExeSuffix$'
+#if __WINDOWS__
+	// on Windows, ugly workarounds for "folders with spaces" are never going out of style
+	// note that we need to do this _after_ .Executable, .Librarian and .Linker have been set
+	.LLVMPath = '"$LLVMPath$"'
+	.PlatformInfo = 'Windows'
+#endif //__WINDOWS__
+#if __OSX__
+	.PlatformInfo = 'OSX'
+#endif //__OSX__
+#if __LINUX__
+	.PlatformInfo = 'Linux'
+#endif //__LINUX__
+	.Compiler = 'Compiler-Clang'
+	.CompilerOptions = '-o "%2" "%1" -c -g -fms-extensions -frtti -Wall'
+		+ ' -isystem $LLVMPath$/include'
+		+ ' -isystem $LLVMPath$/lib/clang/$LLVMVersion$/include'
+		+ .PlatformIncludePaths
+#if __WINDOWS__
+		+ ' -D__WINDOWS__'
+		+ ' -D_WIN32'
+		+ ' -D_WIN64'
+		+ ' -DUNICODE'
+		+ ' -D_UNICODE'
+		+ ' -D_CRT_SECURE_NO_WARNINGS'
+		+ ' -D_CRTDBG_MAP_ALLOC'
+		+ ' -D_WIN32_LEAN_AND_MEAN'
+		+ ' -DNOMINMAX'
+		+ ' -gcodeview'
+		+ ' -Xclang -cfguard'
+#endif //__WINDOWS__
+#if __OSX__
+		+ ' -D__APPLE__'
+		+ ' -D__OSX__'
+		+ ' -fPIC'
+#endif //__OSX__
+#if __LINUX__
+		+ ' -D__LINUX__'
+		+ ' -D__linux__'
+		+ ' -fPIC'
+#endif //__LINUX__
+	.CompilerOptionsC = ' -std=c17 -nostdinc'
+	.CompilerOptionsCpp = ' -std=c++20 -nostdinc++'
+#if !__WINDOWS__
+		+ ' -stdlib=libc++'
+		+ ' -I $LLVMPath$/include/c++/v1' // libc++ location
+#endif
+	.LinkerOptions = '"%1" -o "%2" -g'
+		+ .PlatformLibPaths
+#if __WINDOWS__
+		+ ' -fuse-ld=lld'
+#endif
+	.LinkerOptionsCpp = ' -L $LLVMPath$/lib'
+#if !__WINDOWS__
+		+ ' -Wl,-rpath,$LLVMPath$/lib'
+		+ ' -lc++'
+#endif
+	.LibrarianOptions = 'rcs "%2" "%1"'
+	.LibrarianType = 'ar'
+	.CompilerDebugOptimizations = ' -O0'
+	.CompilerReleaseOptimizations = ' -O3'
+#if __WINDOWS__
+		+ ' -flto=thin'
+#endif
+	.LibrarianDebugOptimizations = ''
+	.LibrarianReleaseOptimizations = ''
+	.LinkerDebugOptimizations = ''
+	.LinkerReleaseOptimizations = ''
+#if __WINDOWS__
+		+ ' -flto=thin'
+#endif
+	.ProfilingEnabled = '0'
+	.GraphicsValidationEnabled = '0'
+]
+
+.Clang_Native_BaseConfig =
+[
+	Using(.Clang_BaseConfig)
+
+	.CompilerOptions + ' -march=x86-64-v3'
+]
+
+.Clang_Native_DebugConfig =
+[
+	Using(.Clang_Native_BaseConfig)
+
+	.ConfigName = 'debug'
+	.ProfilingEnabled = '1'
+	.GraphicsValidationEnabled = '1'
+	.CompilerOptions + ' -D_DEBUG'
+		+ .CompilerDebugOptimizations
+#if __WINDOWS__
+		+ ' -D_ITERATOR_DEBUG_LEVEL=1'
+#endif //__WINDOWS__
+	.LibrarianOptions + .LibrarianDebugOptimizations
+	.LinkerOptions + .LinkerDebugOptimizations
+#if __WINDOWS__
+		+ ' -lmsvcrtd'
+#endif //__WINDOWS__
+]
+
+.Clang_Native_ReleaseConfig =
+[
+	Using(.Clang_Native_BaseConfig)
+
+	.ConfigName = 'release'
+	.CompilerOptions + ' -DRELEASE -DNDEBUG'
+		+ .CompilerReleaseOptimizations
+	.LibrarianOptions + .LibrarianReleaseOptimizations
+	.LinkerOptions + .LinkerReleaseOptimizations
+#if __WINDOWS__
+		+ ' -lmsvcrt'
+#endif //__WINDOWS__
+]
+
+.Clang_Native_ProfileConfig =
+[
+	Using(.Clang_Native_ReleaseConfig)
+
+	.ConfigName = 'profile'
+	.ProfilingEnabled = '1'
+]
+
+.Clang_Native_Configs = {
+	.Clang_Native_DebugConfig, .Clang_Native_ProfileConfig, .Clang_Native_ReleaseConfig
+}
+
+Compiler('Compiler-Clang')
+{
+	Using(.Clang_BaseConfig)
+}

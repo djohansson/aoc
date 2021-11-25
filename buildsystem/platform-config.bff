@@ -1,0 +1,101 @@
+#once
+
+.X86String = 'x86'
+.X64String = 'x64'
+
+.ArchitectureName = '$X64String$'
+
+#if __WINDOWS__
+.LibPrefix = ''
+.LibSuffix = '.lib'
+.DllPrefix = ''
+.DllSuffix = '.dll'
+.ExeSuffix = '.exe'
+
+#if exists(VISUAL_STUDIO)
+#import VISUAL_STUDIO
+.VisualStudioPath = '$VISUAL_STUDIO$'
+#else
+.VisualStudioPath = 'C:/Program Files (x86)/Microsoft Visual Studio/2019/Community'
+#endif
+
+#if exists(VISUAL_STUDIO_TOOLCHAIN_VERSION)
+#import VISUAL_STUDIO_TOOLCHAIN_VERSION
+.VisualStudioToolchainPath = '$VisualStudioPath$/VC/Tools/MSVC/$VISUAL_STUDIO_TOOLCHAIN_VERSION$'
+#else
+.VisualStudioToolchainPath = '$VisualStudioPath$/VC/Tools/MSVC/14.29.30133'
+#endif
+
+#if exists(WINDOWS_SDK)
+#import WINDOWS_SDK
+.WindowsSDKBasePath = '$WINDOWS_SDK$'
+#else
+.WindowsSDKBasePath = 'C:/Program Files (x86)/Windows Kits/10'
+#endif
+
+#if exists(WINDOWS_SDK_VERSION)
+#import WINDOWS_SDK_VERSION
+.WindowsSDKVersion = '$WINDOWS_SDK_VERSION$'
+#else
+.WindowsSDKVersion = '10.0.19041.0'
+#endif
+
+.WindowsLibPath = '$WindowsSDKBasePath$/Lib/$WindowsSDKVersion$/um/x64'
+.WindowsIncludePath = '$WindowsSDKBasePath$/Include/$WindowsSDKVersion$/um'
+.WindowsUcrtLibPath = '$WindowsSDKBasePath$/Lib/$WindowsSDKVersion$/ucrt/x64'
+.WindowsUcrtIncludePath = '$WindowsSDKBasePath$/Include/$WindowsSDKVersion$/ucrt'
+.WindowsSharedIncludePath = '$WindowsSDKBasePath$/Include/$WindowsSDKVersion$/shared'
+.VisualStudioIncludePath = '$VisualStudioToolchainPath$/include'
+.VisualStudioATLMFCIncludePath = '$VisualStudioToolchainPath$/ATLMFC/include'
+.VisualStudioLibPath = '$VisualStudioToolchainPath$/lib/x64'
+
+Settings
+{
+	#import TMP
+	#import windir
+	.Environment =
+	{
+		'TMP=$TMP$',
+		'SystemRoot=$windir$'
+	}
+	.CachePath = '$TMP$/.fbuild.cache'
+}
+.PlatformIncludePaths = ' -isystem "$VisualStudioIncludePath$"'
+	+ ' -isystem "$VisualStudioATLMFCIncludePath$"'
+	+ ' -isystem "$WindowsIncludePath$"'
+	+ ' -isystem "$WindowsUcrtIncludePath$"'
+	+ ' -isystem "$WindowsSharedIncludePath$"'
+.PlatformLibPaths = ' -L"$VisualStudioLibPath$"'
+#endif //__WINDOWS__
+#if __OSX__
+.LibPrefix = 'lib'
+.LibSuffix = '.a'
+.DllPrefix = 'lib'
+.DllSuffix = '.dylib'
+.ExeSuffix = ''
+Settings
+{
+	.CachePath = "/tmp/.fbuild.cache"
+}
+#if exists(SDK_PATH)
+#import SDK_PATH
+.SDKPath = '$SDK_PATH$'
+#else
+.SDKPath = ''
+#endif
+.PlatformIncludePaths = ' -isysroot $SDKPath$'
+.PlatformLibPaths = ''
+#endif //__OSX__
+#if __LINUX__
+.LibPrefix = 'lib'
+.LibSuffix = '.a'
+.DllPrefix = 'lib'
+.DllSuffix = '.so'
+.ExeSuffix = ''
+Settings
+{
+	.CachePath = "/tmp/.fbuild.cache"
+}
+.PlatformIncludePaths = ''
+.PlatformLibPaths = ''
+#endif //__LINUX__

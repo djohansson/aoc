@@ -1,0 +1,10 @@
+#once
+
+#include "platform-config.bff"
+
+#if exists(POWERSHELL_PATH)
+    #import POWERSHELL_PATH
+    .PowerShellExecutable = '$POWERSHELL_PATH$/pwsh$ExeSuffix$'
+#else
+    Error('PowerShell not found. Please set the POWERSHELL_PATH environment variable to a path with a PowerShell 7 executable in it.')
+#endif

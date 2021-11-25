@@ -1,0 +1,544 @@
+#once
+
+#include "platform-config.bff"
+#include "clang-config.bff"
+#include "powershell-config.bff"
+#include "python-config.bff"
+#include "vulkan-config.bff"
+
+.BuildRootPath = '$_WORKING_DIR_$' // should be '$_CURRENT_BFF_DIR_$' but that seems broken...
+.IntermediateFilePath = '$BuildRootPath$/build.intermediate'
+.VisualStudioSolutionPath = '$BuildRootPath$/build.vssolution'
+.BuildOutputPath = '$BuildRootPath$/build.output'
+
+.ProjectCommon = 
+[
+    .EmptyString = ''
+    
+    .ProjectType = 'vcxproj'
+	.ProjectBuildCommand = 'cd ^$(SolutionDir) &amp; fbuild -ide -dist -cache -config $BuildRootPath$/fbuild.bff ^$(ProjectName)-^$(Configuration)'
+	.ProjectRebuildCommand = 'cd ^$(SolutionDir) &amp; fbuild -ide -dist -cache -clean -config $BuildRootPath$/fbuild.bff ^$(ProjectName)-^$(Configuration)'
+	.ProjectCleanCommand = 'cd ^$(SolutionDir) &amp; fbuild -ide -config $BuildRootPath$/fbuild.bff clean-^$(ProjectName)-^$(Configuration)'
+	.ProjectBasePath  = '$BuildRootPath$'
+    //.ProjectInputPathsExclude = // (optional) Paths to exclude from project
+    //.ProjectFilesToExclude          // (optional) List of files to exclude from project
+    //.ProjectPatternToExclude        // (optional) Pattern(s) for files to exclude from project
+    //.ProjectAllowedFileExtensions   // (optional) Extensions to allow in path searches
+    //.ProjectPatternToExclude // (optional) Pattern(s) for files to exclude from project
+    //.ProjectAllowedFileExtensions // (optional) Extensions to allow in path searches
+
+	.OutputDirectory = '$BuildOutputPath$'
+	.IntermediateDirectory = '$IntermediateFilePath$'
+	.Platform = 'x64'
+	.PlatformToolset = 'llvm'
+	.Dependencies = {}
+    
+    .PreBuildDependencies = { }
+	.DependencyObjectLists = { }
+	.DependencyLibraries = { }
+	.DependencyDLLs = { }
+    .DependencyExecutables = { }
+    .DependencyTasks = { }
+    .UnityInputPath = { }
+	.UnityInputPattern = '*.cpp'
+    .UnityInputFiles = { }
+    .UnityInputExcludedFiles = { }
+    .UnityOutputPath = '$IntermediateFilePath$'
+    .CompilerInputPath = { }
+    .CompilerInputPattern = '*.cpp'
+    .CompilerInputFiles = { }
+    .CompilerInputExcludedFiles = { }
+    .OutputFilePrefix = ''
+	.OutputFileSuffix = ''
+    
+    .LocalDebuggerWorkingDirectory = ''
+]
+
+.SolutionCommon = 
+[
+    .ProjectType = 'sln'
+]
+
+.ObjectListCommon = 
+[
+	Using(.ProjectCommon)
+
+    .ProjectType = 'obj'
+    .CompilerInputUnity = { }
+	.ConfigDependentCompilerOptions = { }
+    .ConfigDependentInputPaths = { }
+]
+
+.LibraryCommon = 
+[
+	Using(.ObjectListCommon)
+
+    .ProjectType = 'lib'
+	.OutputFilePrefix = .LibPrefix
+	.OutputFileSuffix = .LibSuffix
+]
+
+.DllCommon = 
+[
+	Using(.ProjectCommon)
+
+    .ProjectType = 'dll'
+	.Libraries = { }
+	.OutputFilePrefix = .DllPrefix
+	.OutputFileSuffix = .DllSuffix
+]
+
+.ExecutableCommon = 
+[
+	Using(.ProjectCommon)
+
+    .ProjectType = 'exe'
+	.Libraries = { }
+	.OutputFilePrefix = ''
+	.OutputFileSuffix = .ExeSuffix
+]
+
+.TestCommon = 
+[
+	Using(.ProjectCommon)
+
+    .ProjectType = 'test'
+    .TestWorkingDir = ''
+    .TestOutputName = ''
+]
+
+.TaskCommon = 
+[
+	Using(.ProjectCommon)
+    
+    .ProjectType = 'task'
+    .ExecExecutable = ''
+    .ExecWorkingDir = ''
+    .UseConfigDependentWorkingDir = true
+	.ExecOutputName = ''
+    .ExecOutputPath = ''
+    .UseConfigDependentOutputPath = true
+]
+
+function PrintArray(.ArrayName .Array)
+{
+    ForEach(.Object in .Array)
+	{
+        Print('$ArrayName$:$Object$')
+    }
+}
+
+function AddUnities(.UnityObject)
+{
+    Using(.UnityObject)
+
+    ^ReturnValues = { }
+        
+    ForEach (.Unity in .CompilerInputUnity)
+    {
+        If(.Unity not in .Unities)
+	    {
+            Unity('$Unity$') {}
+            ^Unities + .Unity
+        }
+
+        ^ReturnValues + '$Unity$'
+    }
+}
+
+function AddObjectList(.ObjectList .CompilerConfig)
+{
+    .LocalObjectList = 
+    [
+        Using(.ObjectList)
+        Using(.CompilerConfig)
+
+        .ObjectListName = '$Name$-obj-$ConfigName$'
+
+        ForEach(.Task in .DependencyTasks)
+        {
+            ^ReturnValues = { }
+            AddTask(.Task .CompilerConfig)
+            ^PreBuildDependencies + .ReturnValues
+        }
+
+        .CompilerOptions + ' -DPROFILING_ENABLED=$ProfilingEnabled$'
+            + .ObjectListCompilerOptions
+
+        .CompilerOptions + ' -DGRAPHICS_VALIDATION_ENABLED=$GraphicsValidationEnabled$'
+            + .ObjectListCompilerOptions
+
+        ForEach(.CompilerOption in .ConfigDependentCompilerOptions)
+        {
+            ^CompilerOptions + '$CompilerOption$/$ConfigName$'
+            ^CompilerOptions + '$CompilerOption$/$ConfigName$/include'
+        }
+
+        .LocalConfigDependentInputPaths = {}
+        ForEach(.ConfigDependentInputPath in .ConfigDependentInputPaths)
+        {
+            ^LocalConfigDependentInputPaths + '$ConfigDependentInputPath$/$ConfigName$'
+        }
+        .CompilerInputPath + .LocalConfigDependentInputPaths
+        
+        .CompilerOutputPath = '$IntermediateDirectory$/$ConfigName$/$Name$'
+    ]
+
+	Using(.LocalObjectList)
+
+	If(.ObjectListName not in .BuildTargets)
+	{
+        ^ReturnValues = { }
+        AddUnities(.LocalObjectList)
+
+		ObjectList('$ObjectListName$') {}
+        ^BuildTargets + .ObjectListName
+	}
+
+    ^ReturnValues = { '$ObjectListName$' }
+}
+
+function AddLibrary(.Library .CompilerConfig)
+{
+    .LocalLibrary = 
+    [
+        Using(.Library)
+        Using(.CompilerConfig)
+
+        .LibraryName = '$Name$-lib-$ConfigName$'
+
+        ForEach(.Task in .DependencyTasks)
+        {
+            ^ReturnValues = { }
+            AddTask(.Task .CompilerConfig)
+            ^PreBuildDependencies + .ReturnValues
+        }
+
+        .CompilerOptions + ' -DPROFILING_ENABLED=$ProfilingEnabled$'
+            + .LibraryCompilerOptions
+
+        ForEach(.CompilerOption in .ConfigDependentCompilerOptions)
+        {
+            ^CompilerOptions + '$CompilerOption$/$ConfigName$'
+            ^CompilerOptions + '$CompilerOption$/$ConfigName$/include'
+        }
+
+        .LocalConfigDependentInputPaths = {}
+        ForEach(.ConfigDependentInputPath in .ConfigDependentInputPaths)
+        {
+            ^LocalConfigDependentInputPaths + '$ConfigDependentInputPath$/$ConfigName$'
+        }
+        .CompilerInputPath + .LocalConfigDependentInputPaths
+        
+        .CompilerOutputPath = '$IntermediateDirectory$/$ConfigName$/$Name$'
+
+        .LibrarianOutput = '$OutputDirectory$/$ConfigName$/$OutputFilePrefix$$Name$$OutputFileSuffix$'
+    ]
+
+	Using(.LocalLibrary)
+
+    If(.LibraryName not in .BuildTargets)
+	{
+        ^ReturnValues = { }
+        AddUnities(.LocalLibrary)
+
+        Library('$LibraryName$') {}
+        ^BuildTargets + .LibraryName
+	}
+
+    ^ReturnValues = { '$LibraryName$' }
+}
+
+function AddDLL(.DLL .CompilerConfig)
+{
+    .LocalDLL = 
+    [
+        Using(.DLL)
+        Using(.CompilerConfig)
+
+        .DLLName = '$Name$-dll-$ConfigName$'
+
+        .LinkerOptions + .DLLLinkerOptions
+        .LinkerOutput = '$OutputDirectory$/$ConfigName$/$OutputFilePrefix$$Name$$OutputFileSuffix$'
+    ]
+
+	Using(.LocalDLL)
+
+    If(.DLLName not in .BuildTargets)
+	{
+		ForEach(.ObjectList in .DependencyObjectLists)
+		{
+            ^ReturnValues = { }
+            AddObjectList(.ObjectList .CompilerConfig)
+            ^Libraries + .ReturnValues
+        }
+
+		ForEach(.Library in .DependencyLibraries)
+		{
+            ^ReturnValues = { }
+            AddLibrary(.Library .CompilerConfig)
+            ^Libraries + .ReturnValues
+        }
+
+		DLL('$DLLName$') {}
+        ^BuildTargets + .DLLName
+	}
+
+    ^ReturnValues = { '$DLLName$' }
+}
+
+function AddExecutable(.Executable .CompilerConfig)
+{
+    .LocalExecutable = 
+    [
+        Using(.Executable)
+        Using(.CompilerConfig)
+
+        .ExecutableName = '$Name$-exe-$ConfigName$'
+
+        .LinkerOptions + .ExecutableLinkerOptions
+        .LinkerOutput = '$BuildOutputPath$/$ConfigName$/$Name$$OutputFileSuffix$'
+    ]
+
+	Using(.LocalExecutable)
+
+    If(.ExecutableName not in .BuildTargets)
+	{
+		ForEach(.ObjectList in .DependencyObjectLists)
+		{
+            ^ReturnValues = { }
+            AddObjectList(.ObjectList .CompilerConfig)
+            ^Libraries + .ReturnValues
+		}
+
+		ForEach(.Library in .DependencyLibraries)
+		{
+            ^ReturnValues = { }
+            AddLibrary(.Library .CompilerConfig)
+            ^Libraries + .ReturnValues
+		}
+
+		ForEach(.DLL in .DependencyDLLs)
+		{
+            ^ReturnValues = { }
+            AddDLL(.DLL .CompilerConfig)
+            ^Libraries + .ReturnValues
+		}
+
+		Executable('$ExecutableName$') {}
+        ^BuildTargets + .ExecutableName
+	}
+
+    ^ReturnValues = { '$ExecutableName$' }
+}
+
+function AddTest(.Test .CompilerConfig)
+{
+    .LocalTest = 
+    [
+        Using(.Test)
+        Using(.CompilerConfig)
+
+        .TestName = '$Name$-test-$ConfigName$'
+                
+        If (.TestWorkingDir == .EmptyString)
+        {
+            ^TestWorkingDir = '$IntermediateDirectory$/$ConfigName$/$Name$'
+        }
+
+        .TestExecutable = '$Name$-exe-$ConfigName$'
+        .TestOutput = '$IntermediateDirectory$/$ConfigName$/$Name$/$TestOutputName$'
+    ]
+
+	Using(.LocalTest)
+
+    If(.TestName not in .BuildTargets)
+	{
+        ForEach(.Executable in .DependencyExecutables)
+        {
+            ^ReturnValues = { }
+            AddExecutable(.Executable .CompilerConfig)
+        }
+        
+		Test('$TestName$') {}
+        ^BuildTargets + .TestName
+	}
+
+    ^ReturnValues = { '$TestName$' }
+}
+
+function AddTask(.Task .CompilerConfig)
+{
+    .LocalTask = 
+    [
+        Using(.Task)
+        Using(.CompilerConfig)
+
+        .TaskName = '$Name$-task-$ConfigName$'
+
+        If (.ExecExecutable == .EmptyString)
+        {
+            ^ExecExecutable = '$Name$-exe-$ConfigName$'
+        }
+
+        If (.ExecWorkingDir == .EmptyString)
+        {
+            ^ExecWorkingDir = '$IntermediateDirectory$'
+        }
+
+        If (.UseConfigDependentWorkingDir)
+        {
+            ^ExecWorkingDir + '/$ConfigName$/$Name$'
+        }
+
+        If (.ExecOutputName == .EmptyString)
+        {
+            ^ExecOutputName = '$Name$'
+        }
+
+        If (.ExecOutputPath == .EmptyString)
+        {
+            ^ExecOutputPath = '$IntermediateDirectory$'
+        }
+
+        If (.UseConfigDependentOutputPath)
+        {
+            ^ExecOutputPath + '/$ConfigName$/$Name$'
+        }
+
+        .ExecOutput = '$ExecOutputPath$/$ExecOutputName$'
+    ]
+
+	Using(.LocalTask)
+
+    If(.TaskName not in .BuildTargets)
+	{
+        ForEach(.Executable in .DependencyExecutables)
+        {
+            ^ReturnValues = { }
+            AddExecutable(.Executable .CompilerConfig)
+        }
+
+		Exec('$TaskName$') {}
+        ^BuildTargets + .TaskName
+	}
+
+    ^ReturnValues = { '$TaskName$' }
+}
+
+function AddProjectConfig(.ArchitectureName .CompilerConfig)
+{
+    .LocalProjectConfig = 
+    [
+        Using(.CompilerConfig)
+
+        .Platform = .ArchitectureName
+        .Config = .ConfigName
+        .ProjectConfigName = '$Config$_$Platform$'
+    ]
+
+    Using(.LocalProjectConfig)
+
+    If(.ProjectConfigName not in .ProjectConfigNames)
+	{
+		^ProjectConfigs + .LocalProjectConfig
+        ^ProjectConfigNames + .ProjectConfigName
+	}
+
+    ^ReturnValues = { '$ProjectConfigName$' }
+}
+
+function AddProject(.Project .ProjectConfigs)
+{
+    .LocalProject = 
+    [
+        Using(.Project)
+
+        .ProjectName = '$Name$-$ProjectType$'
+        .ProjectInputPaths = .UnityInputPath + .CompilerInputPath
+        .ProjectFiles = .UnityInputFiles + .CompilerInputFiles
+        .ProjectOutput = '$VisualStudioSolutionPath$/$ProjectName$.vcxproj'
+        .Output = '$BuildOutputPath$/^$(Configuration)/$OutputFilePrefix$$Name$$OutputFilePrefix$'
+        .ProjectConfigs = .ProjectConfigs
+    ]
+
+    Using(.LocalProject)
+
+    //Print('AddProject:LocalDebuggerWorkingDirectory:$LocalDebuggerWorkingDirectory$')
+
+    // .SolutionDependency = 
+    // [
+    //      Using(.Project)
+    //     .Projects = { '$ProjectName$' }
+    //     .Dependencies = { .Dependencies }
+    // ]
+    
+    // .SolutionFolder = 
+    // [
+    //      Using(.Project)
+    //     .Path = '$Name$'
+    //     .Projects = { '$ProjectName$' }
+    // ]
+
+    //^SolutionDependencies + .SolutionDependency
+    //^SolutionFolders + .SolutionFolder
+
+    If(.ProjectName not in .ProjectNames)
+	{
+        ForEach(.ObjectList in .DependencyObjectLists)
+		{
+            ^ReturnValues = { }
+            AddProject(.ObjectList .ProjectConfigs)
+            //^Dependencies + .ReturnValues
+		}
+
+		ForEach(.Library in .DependencyLibraries)
+		{
+            ^ReturnValues = { }
+            AddProject(.Library .ProjectConfigs)
+            //^Dependencies + .ReturnValues
+		}
+
+		ForEach(.DLL in .DependencyDLLs)
+		{
+            ^ReturnValues = { }
+            AddProject(.DLL .ProjectConfigs)
+            //^Dependencies + .ReturnValues
+		}
+
+		//Print('AddProject:$ProjectName$')
+        VCXProject('$ProjectName$') {}
+        ^ProjectNames + .ProjectName
+	}
+
+    ^ReturnValues = { '$ProjectName$' }
+}
+
+function AddSolution(.Solution .ProjectConfigs .ProjectNames)
+{
+    .LocalSolution = 
+    [
+        Using(.Solution)
+
+        .SolutionName = '$Name$-$ProjectType$'
+        .SolutionOutput = '$VisualStudioSolutionPath$/$Name$.sln'
+        .SolutionProjects = .ProjectNames
+        .SolutionConfigs = .ProjectConfigs
+        //.SolutionFolders = .AllSolutionFolders
+        //.SolutionDependencies = .AllSolutionDependencies
+        //.SolutionVisualStudioVersion        // (optional) Version of Solution (default "14.0.22823.1" VS2015 RC)
+        //.SolutionMinimumVisualStudioVersion // (optional) Min version of Solution (default "10.0.40219.1" VS2010 Express)
+        //.SolutionBuildProject               // (optional) Project(s) set to build when "Build Solution" is selected
+        //.SolutionDeployProjects             // (optional) Project(s) set deploy
+    ]
+
+    Using(.LocalSolution)
+
+    If(.SolutionName not in .SolutionNames)
+	{
+        VSSolution('$SolutionName$') {}
+        ^SolutionNames + .SolutionName
+	}
+
+    ^ReturnValues = { '$SolutionName$' }
+}
