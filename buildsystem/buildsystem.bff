@@ -33,25 +33,27 @@
 	.PlatformToolset = 'llvm'
 	.Dependencies = {}
     
-    .PreBuildDependencies = { }
-	.DependencyObjectLists = { }
-	.DependencyLibraries = { }
-	.DependencyDLLs = { }
-    .DependencyExecutables = { }
-    .DependencyTasks = { }
-    .UnityInputPath = { }
+    .PreBuildDependencies = {}
+	.DependencyObjectLists = {}
+	.DependencyLibraries = {}
+	.DependencyDLLs = {}
+    .DependencyExecutables = {}
+    .DependencyTasks = {}
+    .UnityInputPath = {}
 	.UnityInputPattern = '*.cpp'
-    .UnityInputFiles = { }
-    .UnityInputExcludedFiles = { }
+    .UnityInputFiles = {}
+    .UnityInputExcludedFiles = {}
     .UnityOutputPath = '$IntermediateFilePath$'
-    .CompilerInputPath = { }
+    .CompilerInputPath = {}
     .CompilerInputPattern = '*.cpp'
-    .CompilerInputFiles = { }
-    .CompilerInputExcludedFiles = { }
+    .CompilerInputFiles = {}
+    .CompilerInputExcludedFiles = {}
     .OutputFilePrefix = ''
 	.OutputFileSuffix = ''
     
     .LocalDebuggerWorkingDirectory = ''
+
+    .SolutionFolderName = ''
 ]
 
 .SolutionCommon = 
@@ -64,9 +66,9 @@
 	Using(.ProjectCommon)
 
     .ProjectType = 'obj'
-    .CompilerInputUnity = { }
-	.ConfigDependentCompilerOptions = { }
-    .ConfigDependentInputPaths = { }
+    .CompilerInputUnity = {}
+	.ConfigDependentCompilerOptions = {}
+    .ConfigDependentInputPaths = {}
 ]
 
 .LibraryCommon = 
@@ -83,7 +85,7 @@
 	Using(.ProjectCommon)
 
     .ProjectType = 'dll'
-	.Libraries = { }
+	.Libraries = {}
 	.OutputFilePrefix = .DllPrefix
 	.OutputFileSuffix = .DllSuffix
 ]
@@ -93,7 +95,7 @@
 	Using(.ProjectCommon)
 
     .ProjectType = 'exe'
-	.Libraries = { }
+	.Libraries = {}
 	.OutputFilePrefix = ''
 	.OutputFileSuffix = .ExeSuffix
 ]
@@ -132,7 +134,7 @@ function AddUnities(.UnityObject)
 {
     Using(.UnityObject)
 
-    ^ReturnValues = { }
+    ^ReturnValues = {}
         
     ForEach (.Unity in .CompilerInputUnity)
     {
@@ -146,19 +148,18 @@ function AddUnities(.UnityObject)
     }
 }
 
-function AddObjectList(.ObjectList .CompilerConfig)
+function AddObjectList(.ObjectList)
 {
     .LocalObjectList = 
     [
         Using(.ObjectList)
-        Using(.CompilerConfig)
 
         .ObjectListName = '$Name$-obj-$ConfigName$'
 
         ForEach(.Task in .DependencyTasks)
         {
-            ^ReturnValues = { }
-            AddTask(.Task .CompilerConfig)
+            ^ReturnValues = {}
+            AddTask(.Task)
             ^PreBuildDependencies + .ReturnValues
         }
 
@@ -186,31 +187,30 @@ function AddObjectList(.ObjectList .CompilerConfig)
 
 	Using(.LocalObjectList)
 
-	If(.ObjectListName not in .BuildTargets)
+	If(.ObjectListName not in .BuildTargetNames)
 	{
-        ^ReturnValues = { }
+        ^ReturnValues = {}
         AddUnities(.LocalObjectList)
 
 		ObjectList('$ObjectListName$') {}
-        ^BuildTargets + .ObjectListName
+        ^BuildTargetNames + .ObjectListName
 	}
 
     ^ReturnValues = { '$ObjectListName$' }
 }
 
-function AddLibrary(.Library .CompilerConfig)
+function AddLibrary(.Library)
 {
     .LocalLibrary = 
     [
         Using(.Library)
-        Using(.CompilerConfig)
 
         .LibraryName = '$Name$-lib-$ConfigName$'
 
         ForEach(.Task in .DependencyTasks)
         {
-            ^ReturnValues = { }
-            AddTask(.Task .CompilerConfig)
+            ^ReturnValues = {}
+            AddTask(.Task)
             ^PreBuildDependencies + .ReturnValues
         }
 
@@ -237,24 +237,23 @@ function AddLibrary(.Library .CompilerConfig)
 
 	Using(.LocalLibrary)
 
-    If(.LibraryName not in .BuildTargets)
+    If(.LibraryName not in .BuildTargetNames)
 	{
-        ^ReturnValues = { }
+        ^ReturnValues = {}
         AddUnities(.LocalLibrary)
 
         Library('$LibraryName$') {}
-        ^BuildTargets + .LibraryName
+        ^BuildTargetNames + .LibraryName
 	}
 
     ^ReturnValues = { '$LibraryName$' }
 }
 
-function AddDLL(.DLL .CompilerConfig)
+function AddDLL(.DLL)
 {
     .LocalDLL = 
     [
         Using(.DLL)
-        Using(.CompilerConfig)
 
         .DLLName = '$Name$-dll-$ConfigName$'
 
@@ -264,35 +263,34 @@ function AddDLL(.DLL .CompilerConfig)
 
 	Using(.LocalDLL)
 
-    If(.DLLName not in .BuildTargets)
+    If(.DLLName not in .BuildTargetNames)
 	{
 		ForEach(.ObjectList in .DependencyObjectLists)
 		{
-            ^ReturnValues = { }
-            AddObjectList(.ObjectList .CompilerConfig)
+            ^ReturnValues = {}
+            AddObjectList(.ObjectList)
             ^Libraries + .ReturnValues
         }
 
 		ForEach(.Library in .DependencyLibraries)
 		{
-            ^ReturnValues = { }
-            AddLibrary(.Library .CompilerConfig)
+            ^ReturnValues = {}
+            AddLibrary(.Library)
             ^Libraries + .ReturnValues
         }
 
 		DLL('$DLLName$') {}
-        ^BuildTargets + .DLLName
+        ^BuildTargetNames + .DLLName
 	}
 
     ^ReturnValues = { '$DLLName$' }
 }
 
-function AddExecutable(.Executable .CompilerConfig)
+function AddExecutable(.Executable)
 {
     .LocalExecutable = 
     [
         Using(.Executable)
-        Using(.CompilerConfig)
 
         .ExecutableName = '$Name$-exe-$ConfigName$'
 
@@ -302,43 +300,42 @@ function AddExecutable(.Executable .CompilerConfig)
 
 	Using(.LocalExecutable)
 
-    If(.ExecutableName not in .BuildTargets)
+    If(.ExecutableName not in .BuildTargetNames)
 	{
 		ForEach(.ObjectList in .DependencyObjectLists)
 		{
-            ^ReturnValues = { }
-            AddObjectList(.ObjectList .CompilerConfig)
+            ^ReturnValues = {}
+            AddObjectList(.ObjectList)
             ^Libraries + .ReturnValues
 		}
 
 		ForEach(.Library in .DependencyLibraries)
 		{
-            ^ReturnValues = { }
-            AddLibrary(.Library .CompilerConfig)
+            ^ReturnValues = {}
+            AddLibrary(.Library)
             ^Libraries + .ReturnValues
 		}
 
 		ForEach(.DLL in .DependencyDLLs)
 		{
-            ^ReturnValues = { }
-            AddDLL(.DLL .CompilerConfig)
+            ^ReturnValues = {}
+            AddDLL(.DLL)
             ^Libraries + .ReturnValues
 		}
 
 		Executable('$ExecutableName$') {}
-        ^BuildTargets + .ExecutableName
+        ^BuildTargetNames + .ExecutableName
 	}
 
     ^ReturnValues = { '$ExecutableName$' }
 }
 
-function AddTest(.Test .CompilerConfig)
+function AddTest(.Test)
 {
     .LocalTest = 
     [
         Using(.Test)
-        Using(.CompilerConfig)
-
+        
         .TestName = '$Name$-test-$ConfigName$'
                 
         If (.TestWorkingDir == .EmptyString)
@@ -352,28 +349,27 @@ function AddTest(.Test .CompilerConfig)
 
 	Using(.LocalTest)
 
-    If(.TestName not in .BuildTargets)
+    If(.TestName not in .BuildTargetNames)
 	{
         ForEach(.Executable in .DependencyExecutables)
         {
-            ^ReturnValues = { }
-            AddExecutable(.Executable .CompilerConfig)
+            ^ReturnValues = {}
+            AddExecutable(.Executable)
         }
         
 		Test('$TestName$') {}
-        ^BuildTargets + .TestName
+        ^BuildTargetNames + .TestName
 	}
 
     ^ReturnValues = { '$TestName$' }
 }
 
-function AddTask(.Task .CompilerConfig)
+function AddTask(.Task)
 {
     .LocalTask = 
     [
         Using(.Task)
-        Using(.CompilerConfig)
-
+        
         .TaskName = '$Name$-task-$ConfigName$'
 
         If (.ExecExecutable == .EmptyString)
@@ -411,44 +407,133 @@ function AddTask(.Task .CompilerConfig)
 
 	Using(.LocalTask)
 
-    If(.TaskName not in .BuildTargets)
+    If(.TaskName not in .BuildTargetNames)
 	{
         ForEach(.Executable in .DependencyExecutables)
         {
-            ^ReturnValues = { }
-            AddExecutable(.Executable .CompilerConfig)
+            ^ReturnValues = {}
+            AddExecutable(.Executable)
         }
 
 		Exec('$TaskName$') {}
-        ^BuildTargets + .TaskName
+        ^BuildTargetNames + .TaskName
 	}
 
     ^ReturnValues = { '$TaskName$' }
 }
 
-function AddProjectConfig(.ArchitectureName .CompilerConfig)
+function AddBuildTarget(.BuildTarget)
 {
-    .LocalProjectConfig = 
-    [
-        Using(.CompilerConfig)
+    Using(.BuildTarget)
 
-        .Platform = .ArchitectureName
-        .Config = .ConfigName
-        .ProjectConfigName = '$Config$_$Platform$'
-    ]
+    .TestString = 'obj'
+    If(.ProjectType == .TestString)
+    {
+        AddObjectList(.BuildTarget)
+    }
 
-    Using(.LocalProjectConfig)
+    .TestString = 'lib'
+    If(.ProjectType == .TestString)
+    {
+        AddLibrary(.BuildTarget)
+    }
+
+    .TestString = 'dll'
+    If(.ProjectType == .TestString)
+    {
+        AddDLL(.BuildTarget)
+    }
+
+    .TestString = 'exe'
+    If(.ProjectType == .TestString)
+    {
+        AddExecutable(.BuildTarget)
+    }
+
+    .TestString = 'test'
+    If(.ProjectType == .TestString)
+    {
+        AddTest(.BuildTarget)
+    }
+
+    .TestString = 'task'
+    If(.ProjectType == .TestString)
+    {
+        AddTask(.BuildTarget)
+    }
+
+    ^ReturnValues = { '$ProjectType$' }
+}
+
+function AddProjectConfig(.ProjectConfig)
+{
+    Using(.ProjectConfig)
 
     If(.ProjectConfigName not in .ProjectConfigNames)
 	{
-		^ProjectConfigs + .LocalProjectConfig
+		^ProjectConfigs + .ProjectConfig
         ^ProjectConfigNames + .ProjectConfigName
 	}
 
     ^ReturnValues = { '$ProjectConfigName$' }
 }
 
-function AddProject(.Project .ProjectConfigs)
+function AddToSolutionFolder(.Project)
+{
+    Using(.Project)
+
+    .LocalSolutionFolders = {}
+    .LocalSolutionFolderNames = {}
+    
+    If(.SolutionFolderName not in .SolutionFolderNames)
+    {
+        .LocalSolutionFolder =
+        [
+            .Path = .SolutionFolderName
+            .Projects = { .ProjectName }
+            .Items = {}
+        ]
+
+        Using(.LocalSolutionFolder)
+
+        // Print('AddSolutionFolder:$SolutionFolderName$')
+        // PrintArray('AddToSolutionFolder:SolutionFolder:Projects', .Projects)
+
+        ^LocalSolutionFolders + .LocalSolutionFolder
+        ^LocalSolutionFolderNames + .SolutionFolderName
+    }
+
+    ForEach(.SolutionFolder in .SolutionFolders)
+    {
+        Using(.SolutionFolder)
+
+        .LocalProjects = .Projects
+
+        If(.SolutionFolderName == .Path)
+        {
+            ^LocalProjects + .ProjectName
+        }
+
+        .LocalSolutionFolder = 
+        [
+            .Path = .Path
+            .Projects = .LocalProjects
+            .Items = .Items
+        ]
+
+        // PrintArray('AddToSolutionFolder:SolutionFolder:Projects', .LocalProjects)
+
+        ^LocalSolutionFolders + .LocalSolutionFolder
+        ^LocalSolutionFolderNames + .Path
+    }
+
+   ^SolutionFolders = .LocalSolutionFolders
+   ^SolutionFolderNames = .LocalSolutionFolderNames
+
+    ^ReturnValues = { '$SolutionFolderName$' }
+}
+
+function AddProject(.Project)
 {
     .LocalProject = 
     [
@@ -459,62 +544,49 @@ function AddProject(.Project .ProjectConfigs)
         .ProjectFiles = .UnityInputFiles + .CompilerInputFiles
         .ProjectOutput = '$VisualStudioSolutionPath$/$ProjectName$.vcxproj'
         .Output = '$BuildOutputPath$/^$(Configuration)/$OutputFilePrefix$$Name$$OutputFilePrefix$'
-        .ProjectConfigs = .ProjectConfigs
     ]
 
     Using(.LocalProject)
-
-    //Print('AddProject:LocalDebuggerWorkingDirectory:$LocalDebuggerWorkingDirectory$')
-
-    // .SolutionDependency = 
-    // [
-    //      Using(.Project)
-    //     .Projects = { '$ProjectName$' }
-    //     .Dependencies = { .Dependencies }
-    // ]
-    
-    // .SolutionFolder = 
-    // [
-    //      Using(.Project)
-    //     .Path = '$Name$'
-    //     .Projects = { '$ProjectName$' }
-    // ]
-
-    //^SolutionDependencies + .SolutionDependency
-    //^SolutionFolders + .SolutionFolder
 
     If(.ProjectName not in .ProjectNames)
 	{
         ForEach(.ObjectList in .DependencyObjectLists)
 		{
-            ^ReturnValues = { }
-            AddProject(.ObjectList .ProjectConfigs)
+            ^ReturnValues = {}
+            AddProject(.ObjectList)
             //^Dependencies + .ReturnValues
 		}
 
 		ForEach(.Library in .DependencyLibraries)
 		{
-            ^ReturnValues = { }
-            AddProject(.Library .ProjectConfigs)
+            ^ReturnValues = {}
+            AddProject(.Library)
             //^Dependencies + .ReturnValues
 		}
 
 		ForEach(.DLL in .DependencyDLLs)
 		{
-            ^ReturnValues = { }
-            AddProject(.DLL .ProjectConfigs)
+            ^ReturnValues = {}
+            AddProject(.DLL)
             //^Dependencies + .ReturnValues
 		}
 
 		//Print('AddProject:$ProjectName$')
+
         VCXProject('$ProjectName$') {}
+
+        If (.SolutionFolderName != .EmptyString)
+        {
+            AddToSolutionFolder(.Project)
+        }
+
         ^ProjectNames + .ProjectName
 	}
 
     ^ReturnValues = { '$ProjectName$' }
 }
 
-function AddSolution(.Solution .ProjectConfigs .ProjectNames)
+function AddSolution(.Solution)
 {
     .LocalSolution = 
     [
@@ -522,10 +594,8 @@ function AddSolution(.Solution .ProjectConfigs .ProjectNames)
 
         .SolutionName = '$Name$-$ProjectType$'
         .SolutionOutput = '$VisualStudioSolutionPath$/$Name$.sln'
-        .SolutionProjects = .ProjectNames
-        .SolutionConfigs = .ProjectConfigs
-        //.SolutionFolders = .AllSolutionFolders
-        //.SolutionDependencies = .AllSolutionDependencies
+        //.SolutionFolders
+        //.SolutionDependencies
         //.SolutionVisualStudioVersion        // (optional) Version of Solution (default "14.0.22823.1" VS2015 RC)
         //.SolutionMinimumVisualStudioVersion // (optional) Min version of Solution (default "10.0.40219.1" VS2010 Express)
         //.SolutionBuildProject               // (optional) Project(s) set to build when "Build Solution" is selected

@@ -1,13 +1,34 @@
 #include "buildsystem/buildsystem.bff"
 
-.FBuildProjectName = "aoc"
+.GlobalContext =
+[
+	.FBuildProjectName = "aoc"
 
-.CompilerBaseConfig = .Clang_BaseConfig
-.CompilerConfigs = .Clang_Native_Configs
+	// buildsystem target list.
+	.Targets = {}
 
-.Executables = {}
+	// arch
+	.ArchitectureNames = { '$X64String$' }
+
+	// compiler
+	.CompilerBaseConfig = .Clang_BaseConfig
+	.CompilerConfigs = .Clang_Native_Configs
+
+	// temp
+	.ReturnValues = {}
+]
+
+Using(.GlobalContext)
 
 {
+	.BuildContext =
+	[
+		.UnityNames = {}
+		.BuildTargets = {}
+		.BuildTargetNames = {}
+	]
+
+	Using(.BuildContext)
 	Using(.CompilerBaseConfig)
 
 	.2020_Day1_ObjectList =
@@ -15,6 +36,7 @@
 		Using(.ObjectListCommon)
 
 		.ProjectBasePath = '$BuildRootPath$/src/2020/day1'
+		.SolutionFolderName = '2020'
 
 		.Name = '2020_day1'
 		.ObjectListCompilerOptions = .CompilerOptionsCpp
@@ -25,6 +47,8 @@
 	[
 		Using(.ExecutableCommon)
 
+		.SolutionFolderName = '2020'
+
 		.Name = '2020_day1'
 		.DependencyObjectLists =
 		{
@@ -33,13 +57,14 @@
 		.ExecutableLinkerOptions = .LinkerOptionsCpp
 	]
 
-	^Executables + .2020_Day1_Executable
+	.BuildTargets + .2020_Day1_Executable
 
 	.2020_Day2_ObjectList =
 	[
 		Using(.ObjectListCommon)
 
 		.ProjectBasePath = '$BuildRootPath$/src/2020/day2'
+		.SolutionFolderName = '2020'
 
 		.Name = '2020_day2'
 		.ObjectListCompilerOptions = .CompilerOptionsCpp
@@ -50,6 +75,8 @@
 	[
 		Using(.ExecutableCommon)
 
+		.SolutionFolderName = '2020'
+
 		.Name = '2020_day2'
 		.DependencyObjectLists =
 		{
@@ -58,125 +85,135 @@
 		.ExecutableLinkerOptions = .LinkerOptionsCpp
 	]
 
-	^Executables + .2020_Day2_Executable
+	.BuildTargets + .2020_Day2_Executable
 
+	// set up build targets
+	
+	ForEach(.CompilerConfig in .CompilerConfigs)
 	{
-		.GlobalContext =
+		.CompilerConfigContext =
 		[
+			.UnityNames = {}
 			.Targets = {}
-			.Unities = {}
-			.BuildTargets = {}
-			.ProjectNames = {}
-			.SolutionNames = {}
-			// .SolutionDependencies = {}
-			// .SolutionFolders = {}
-			.ReturnValues = {}
+			.BuildTargetNames = {}
 		]
 
-		Using(.GlobalContext)
-		
-		ForEach(.CompilerConfig in .CompilerConfigs)
+		Using(.CompilerConfigContext)
+		Using(.CompilerConfig)
+
+		ForEach(.BuildTarget in .BuildTargets)
 		{
-			.CompilerConfigContext =
-			[
-				.Targets = {}
-				.BuildTargets = {}
-			]
-
-			Using(.CompilerConfigContext)
-			Using(.CompilerConfig)
-
-			ForEach(.Executable in .Executables)
-			{
-				AddExecutable(.Executable .CompilerConfig)
-			}
-
-			.Targets + .Unities
-			.Targets + .BuildTargets
-
-			Alias('$ConfigName$') {}
-
-			^BuildTargets + .BuildTargets
-
-			RemoveDir('clean-$ConfigName$')
-			{
-				.RemovePaths =
-				{
-					'$IntermediateFilePath$/$ConfigName$',
-					'$BuildOutputPath$/$ConfigName$',
-				}
-			}
+			AddBuildTarget(.BuildTarget)
 		}
 
-		{
-			.VSContext =
-			[
-				.Targets = {}
-				.ProjectConfigs = {}
-				.ProjectConfigNames = {}
-				.ProjectNames = {}
-				.SolutionNames = {}
-				// .SolutionDependencies = {}
-				// .SolutionFolders = {}
-			]
+		.Targets + .UnityNames
+		.Targets + .BuildTargetNames
 
-			.AllProject =
-			[
-				Using(.ProjectCommon)
-				
-				.Name = 'all'
-				.ProjectBuildCommand = 'cd ^$(SolutionDir) &amp; fbuild -ide -dist -cache -config $BuildRootPath$/fbuild.bff ^$(Configuration)'
-				.ProjectRebuildCommand = 'cd ^$(SolutionDir) &amp; fbuild -ide -dist -cache -clean -config $BuildRootPath$/fbuild.bff ^$(Configuration)'
-				.ProjectCleanCommand = 'cd ^$(SolutionDir) &amp; fbuild -ide -config $BuildRootPath$/fbuild.bff clean-^$(Configuration)'
-			]
+		Alias('$ConfigName$') {}
 
-			.AllSolution =
-			[
-				Using(.SolutionCommon)
-				
-				.Name = '$FBuildProjectName$'
-				.SolutionBuildProject = 'all-vcxproj'
-			]
-
-			Using(.VSContext)
-
-			ForEach(.CompilerConfig in .CompilerConfigs)
-			{
-				AddProjectConfig(.ArchitectureName .CompilerConfig)
-			}
-
-			AddProject(.AllProject .ProjectConfigs)
-
-			ForEach(.Executable in .Executables)
-			{
-				AddProject(.Executable .ProjectConfigs)
-			}
-
-			AddSolution(.AllSolution .ProjectConfigs .ProjectNames)
-
-			.Targets + .ProjectNames
-			.Targets + .SolutionNames
-			
-			Alias('sln') {}
-
-			^ProjectNames = .ProjectNames
-			^SolutionNames = .SolutionNames
-		}
-
-		.Targets + .Unities
-		.Targets + .BuildTargets
-		.Targets + .ProjectNames
-		.Targets + .SolutionNames
-
-		Alias('all') {}
-
-		RemoveDir('clean')
+		RemoveDir('clean-$ConfigName$')
 		{
 			.RemovePaths =
 			{
-				'$IntermediateFilePath$',
-				'$BuildOutputPath$',
+				'$IntermediateFilePath$/$ConfigName$',
+				'$BuildOutputPath$/$ConfigName$',
 			}
+		}
+
+		^UnityNames + .UnityNames
+		^BuildTargetNames + .BuildTargetNames
+	}
+
+	// set up visual studio projects & solution
+
+	{
+		.VSContext =
+		[
+			.Targets = {}
+			.ProjectConfigs = {}
+			.ProjectConfigNames = {}
+			.ProjectNames = {}
+			.SolutionNames = {}
+			//.SolutionDependencies = {}
+			.SolutionFolders = {}
+			.SolutionFolderNames = {}
+		]
+
+		Using(.VSContext)
+
+		ForEach(.CompilerConfig in .CompilerConfigs)
+		{
+			Using(.CompilerConfig)
+
+			ForEach(.ArchitectureName in .ArchitectureNames)
+			{
+				.ProjectConfig = 
+				[
+					.Platform = .ArchitectureName
+					.Config = .ConfigName
+					.ProjectConfigName = '$Config$_$Platform$'
+				]
+
+				AddProjectConfig(.ProjectConfig)
+			}
+		}
+
+		ForEach(.BuildTarget in .BuildTargets)
+		{
+			Using(.BuildTarget)
+
+			AddProject(.BuildTarget)
+		}
+
+		.AllProject =
+		[
+			Using(.ProjectCommon)
+			
+			.Name = 'all'
+			.ProjectBuildCommand = 'cd ^$(SolutionDir) &amp; fbuild -ide -dist -cache -config $BuildRootPath$/fbuild.bff ^$(Configuration)'
+			.ProjectRebuildCommand = 'cd ^$(SolutionDir) &amp; fbuild -ide -dist -cache -clean -config $BuildRootPath$/fbuild.bff ^$(Configuration)'
+			.ProjectCleanCommand = 'cd ^$(SolutionDir) &amp; fbuild -ide -config $BuildRootPath$/fbuild.bff clean-^$(Configuration)'
+		]
+
+		AddProject(.AllProject)
+
+		.Solution =
+		[
+			Using(.SolutionCommon)
+			
+			.Name = '$FBuildProjectName$'
+			.SolutionProjects = .ProjectNames
+        	.SolutionConfigs = .ProjectConfigs
+			.SolutionBuildProject = 'all-vcxproj'
+		]
+
+		AddSolution(.Solution)
+
+		.Targets + .ProjectNames
+		.Targets + .SolutionNames
+		
+		Alias('sln') {}
+
+		RemoveDir('clean-sln')
+		{
+			.RemovePaths =
+			{
+				'$VisualStudioSolutionPath$',
+			}
+		}
+	}
+
+	.Targets + .UnityNames
+	.Targets + .BuildTargetNames
+
+	Alias('all') {}
+
+	RemoveDir('clean')
+	{
+		.RemovePaths =
+		{
+			'$IntermediateFilePath$',
+			'$BuildOutputPath$',
 		}
 	}
 }
