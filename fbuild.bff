@@ -48,6 +48,7 @@ Using(.GlobalContext)
 		Using(.ExecutableCommon)
 
 		.SolutionFolderName = '2020'
+		.LocalDebuggerWorkingDirectory = '$BuildRootPath$/src/2020/day1'
 
 		.Name = '2020_day1'
 		.DependencyObjectLists =
@@ -76,6 +77,7 @@ Using(.GlobalContext)
 		Using(.ExecutableCommon)
 
 		.SolutionFolderName = '2020'
+		.LocalDebuggerWorkingDirectory = '$BuildRootPath$/src/2020/day2'
 
 		.Name = '2020_day2'
 		.DependencyObjectLists =
