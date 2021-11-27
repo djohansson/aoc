@@ -26,6 +26,7 @@ int main()
 
     inputFile.close();
 
+    // part1
     auto result = count_if(
         begin(entries),
         end(entries),
@@ -36,6 +37,18 @@ int main()
             return c >= min && c <= max;
         });
 
+    cout << result << "\n";
+
+    // part2
+    result = count_if(
+        begin(entries),
+        end(entries),
+        [](const auto& entry)
+        {
+            const auto& [a, b, letter, pwd] = entry;
+            return (pwd[a-1] == letter) ^ (pwd[b-1] == letter);
+        });
+   
     cout << result << "\n";
 
     return 0;
