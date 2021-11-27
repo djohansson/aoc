@@ -1,19 +1,18 @@
-#include <algorithm>
 #include <fstream>
 #include <iostream>
+#include <optional>
 #include <string>
-#include <utility>
+#include <tuple>
 #include <vector>
 
 int main()
 {
     using namespace std;
-    namespace rng = std::ranges;
     
     string line;
     ifstream inputFile("input.txt");
     vector<int> numbers;
-    pair<int, int> result;
+    optional<tuple<int, int, int>> result;
 
     if (!inputFile.is_open())
         return -1;
@@ -23,13 +22,52 @@ int main()
 
     inputFile.close();
 
-    if (rng::find_first_of(numbers, numbers, [&result](int a, int b) { result = { a, b }; return (a + b) == 2020; }) == numbers.end())
-        return -1;
+    for (auto i : numbers)
+        for (auto j : numbers)
+            if (i + j == 2020)
+            {
+                result = { i, j, 0 };
+                goto part1_printresult;
+            }
 
-    const auto& [a, b] = result;
+part1_printresult:
 
-    cout << a << " + " << b << " = " << a + b << "\n";
-    cout << a << " * " << b << " = " << a * b << "\n";
+    if (result.has_value())
+    {
+        const auto& [i, j, unused] = result.value();
+
+        cout << i << " + " << j << " = " << i + j << "\n";
+        cout << i << " * " << j << " = " << i * j << "\n";
+    }
+    else return -1;
+
+    result = nullopt;
+
+    for (auto i : numbers)
+        for (auto j : numbers)
+        {
+            auto sum = i + j;
+            if (sum <= 2020)
+            {
+                for (auto k : numbers)
+                    if (i + j + k == 2020)
+                    {
+                        result = { i, j, k };
+                        goto part2_printresult;
+                    }
+            }
+        }
+
+part2_printresult:
+
+    if (result.has_value())
+    {
+        const auto& [i, j, k] = result.value();
+
+        cout << i << " + " << j << " + " << k << " = " << i + j + k << "\n";
+        cout << i << " * " << j << " * " << k << " = " << i * j * k << "\n";
+    }
+    else return -1;
 
     return 0;
 }
