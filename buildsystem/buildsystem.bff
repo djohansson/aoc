@@ -23,6 +23,8 @@
 	.ReturnValues = {}
 ]
 
+// todo: refactor - move and protect (should not be used directly)
+
 .BuildRootPath = '$_WORKING_DIR_$' // should be '$_CURRENT_BFF_DIR_$' but that seems broken...
 .IntermediateFilePath = '$BuildRootPath$/build.intermediate'
 .VisualStudioSolutionPath = '$BuildRootPath$/build.vssolution'
@@ -36,6 +38,7 @@
 	.ProjectBuildCommand = 'cd ^$(SolutionDir) &amp; fbuild -ide -dist -cache -config $BuildRootPath$/fbuild.bff ^$(ProjectName)-^$(Configuration)'
 	.ProjectRebuildCommand = 'cd ^$(SolutionDir) &amp; fbuild -ide -dist -cache -clean -config $BuildRootPath$/fbuild.bff ^$(ProjectName)-^$(Configuration)'
 	.ProjectCleanCommand = 'cd ^$(SolutionDir) &amp; fbuild -ide -config $BuildRootPath$/fbuild.bff clean-^$(ProjectName)-^$(Configuration)'
+    .ProjectParentFolderName = .EmptyString
 	.ProjectBasePath  = '$BuildRootPath$'
     //.ProjectInputPathsExclude = // (optional) Paths to exclude from project
     //.ProjectFilesToExclude          // (optional) List of files to exclude from project
@@ -69,8 +72,6 @@
 	.OutputFileSuffix = ''
     
     .LocalDebuggerWorkingDirectory = ''
-
-    .SolutionFolderName = ''
 ]
 
 .SolutionCommon = 
@@ -171,7 +172,7 @@ function AddObjectList(.ObjectList)
     [
         Using(.ObjectList)
 
-        .ObjectListName = '$Name$-obj-$ConfigName$'
+        .ObjectListName = '$ProjectParentFolderName$/$Name$-obj-$ConfigName$'
 
         ForEach(.Task in .DependencyTasks)
         {
@@ -199,7 +200,7 @@ function AddObjectList(.ObjectList)
         }
         .CompilerInputPath + .LocalConfigDependentInputPaths
         
-        .CompilerOutputPath = '$IntermediateDirectory$/$ConfigName$/$Name$'
+        .CompilerOutputPath = '$IntermediateDirectory$/$ConfigName$/$ProjectParentFolderName$/$Name$'
     ]
 
 	Using(.LocalObjectList)
@@ -222,7 +223,7 @@ function AddLibrary(.Library)
     [
         Using(.Library)
 
-        .LibraryName = '$Name$-lib-$ConfigName$'
+        .LibraryName = '$ProjectParentFolderName$/$Name$-lib-$ConfigName$'
 
         ForEach(.Task in .DependencyTasks)
         {
@@ -247,9 +248,9 @@ function AddLibrary(.Library)
         }
         .CompilerInputPath + .LocalConfigDependentInputPaths
         
-        .CompilerOutputPath = '$IntermediateDirectory$/$ConfigName$/$Name$'
+        .CompilerOutputPath = '$IntermediateDirectory$/$ConfigName$/$ProjectParentFolderName$/$Name$'
 
-        .LibrarianOutput = '$OutputDirectory$/$ConfigName$/$OutputFilePrefix$$Name$$OutputFileSuffix$'
+        .LibrarianOutput = '$OutputDirectory$/$ConfigName$/$ProjectParentFolderName$/$OutputFilePrefix$$Name$$OutputFileSuffix$'
     ]
 
 	Using(.LocalLibrary)
@@ -272,10 +273,10 @@ function AddDLL(.DLL)
     [
         Using(.DLL)
 
-        .DLLName = '$Name$-dll-$ConfigName$'
+        .DLLName = '$ProjectParentFolderName$/$Name$-dll-$ConfigName$'
 
         .LinkerOptions + .DLLLinkerOptions
-        .LinkerOutput = '$OutputDirectory$/$ConfigName$/$OutputFilePrefix$$Name$$OutputFileSuffix$'
+        .LinkerOutput = '$OutputDirectory$/$ConfigName$/$ProjectParentFolderName$/$OutputFilePrefix$$Name$$OutputFileSuffix$'
     ]
 
 	Using(.LocalDLL)
@@ -309,10 +310,10 @@ function AddExecutable(.Executable)
     [
         Using(.Executable)
 
-        .ExecutableName = '$Name$-exe-$ConfigName$'
+        .ExecutableName = '$ProjectParentFolderName$/$Name$-exe-$ConfigName$'
 
         .LinkerOptions + .ExecutableLinkerOptions
-        .LinkerOutput = '$BuildOutputPath$/$ConfigName$/$Name$$OutputFileSuffix$'
+        .LinkerOutput = '$OutputDirectory$/$ConfigName$/$ProjectParentFolderName$/$OutputFilePrefix$$Name$$OutputFileSuffix$'
     ]
 
 	Using(.LocalExecutable)
@@ -353,15 +354,15 @@ function AddTest(.Test)
     [
         Using(.Test)
         
-        .TestName = '$Name$-test-$ConfigName$'
+        .TestName = '$ProjectParentFolderName$/$Name$-test-$ConfigName$'
                 
         If (.TestWorkingDir == .EmptyString)
         {
-            ^TestWorkingDir = '$IntermediateDirectory$/$ConfigName$/$Name$'
+            ^TestWorkingDir = '$IntermediateDirectory$/$ConfigName$/$ProjectParentFolderName$/$Name$'
         }
 
         .TestExecutable = '$Name$-exe-$ConfigName$'
-        .TestOutput = '$IntermediateDirectory$/$ConfigName$/$Name$/$TestOutputName$'
+        .TestOutput = '$IntermediateDirectory$/$ConfigName$/$ProjectParentFolderName$/$Name$/$TestOutputName$'
     ]
 
 	Using(.LocalTest)
@@ -387,7 +388,7 @@ function AddTask(.Task)
     [
         Using(.Task)
         
-        .TaskName = '$Name$-task-$ConfigName$'
+        .TaskName = '$ProjectParentFolderName$/$Name$-task-$ConfigName$'
 
         If (.ExecExecutable == .EmptyString)
         {
@@ -502,22 +503,22 @@ function AddToSolutionFolder(.Project)
     .LocalSolutionFolders = {}
     .LocalSolutionFolderNames = {}
     
-    If(.SolutionFolderName not in .SolutionFolderNames)
+    If(.ProjectParentFolderName not in .SolutionFolderNames)
     {
         .LocalSolutionFolder =
         [
-            .Path = .SolutionFolderName
+            .Path = .ProjectParentFolderName
             .Projects = { .ProjectName }
             .Items = {}
         ]
 
         Using(.LocalSolutionFolder)
 
-        // Print('AddSolutionFolder:$SolutionFolderName$')
+        // Print('AddSolutionFolder:$ProjectParentFolderName$')
         // PrintArray('AddToSolutionFolder:SolutionFolder:Projects', .Projects)
 
         ^LocalSolutionFolders + .LocalSolutionFolder
-        ^LocalSolutionFolderNames + .SolutionFolderName
+        ^LocalSolutionFolderNames + .ProjectParentFolderName
     }
 
     ForEach(.SolutionFolder in .SolutionFolders)
@@ -526,7 +527,7 @@ function AddToSolutionFolder(.Project)
 
         .LocalProjects = .Projects
 
-        If(.SolutionFolderName == .Path)
+        If(.ProjectParentFolderName == .Path)
         {
             ^LocalProjects + .ProjectName
         }
@@ -547,7 +548,7 @@ function AddToSolutionFolder(.Project)
    ^SolutionFolders = .LocalSolutionFolders
    ^SolutionFolderNames = .LocalSolutionFolderNames
 
-    ^ReturnValues = { '$SolutionFolderName$' }
+    ^ReturnValues = { '$ProjectParentFolderName$' }
 }
 
 function AddProject(.Project)
@@ -559,8 +560,8 @@ function AddProject(.Project)
         .ProjectName = '$Name$-$ProjectType$'
         .ProjectInputPaths = .UnityInputPath + .CompilerInputPath
         .ProjectFiles = .UnityInputFiles + .CompilerInputFiles
-        .ProjectOutput = '$VisualStudioSolutionPath$/$ProjectName$.vcxproj'
-        .Output = '$BuildOutputPath$/^$(Configuration)/$OutputFilePrefix$$Name$$OutputFilePrefix$'
+        .ProjectOutput = '$VisualStudioSolutionPath$/$ProjectParentFolderName$/$ProjectName$.vcxproj'
+        .Output = '$OutputDirectory$/^$(Configuration)/$ProjectParentFolderName$/$OutputFilePrefix$$Name$$OutputFilePrefix$'
     ]
 
     Using(.LocalProject)
@@ -592,7 +593,7 @@ function AddProject(.Project)
 
         VCXProject('$ProjectName$') {}
 
-        If (.SolutionFolderName != .EmptyString)
+        If (.ProjectParentFolderName != .EmptyString)
         {
             AddToSolutionFolder(.Project)
         }

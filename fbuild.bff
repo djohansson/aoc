@@ -11,65 +11,10 @@ Using(.BuildContext)
 {
 	Using(.CompilerBaseConfig)
 
-	.2020_Day1_ObjectList =
-	[
-		Using(.ObjectListCommon)
+#include "src/2020/2020.bff"
+#include "src/2021/2021.bff"
 
-		.ProjectBasePath = '$BuildRootPath$/src/2020/day1'
-		.SolutionFolderName = '2020'
-
-		.Name = '2020_day1'
-		.ObjectListCompilerOptions = .CompilerOptionsCpp
-		.CompilerInputPath = '$ProjectBasePath$'
-	]
-
-	.2020_Day1_Executable =
-	[
-		Using(.ExecutableCommon)
-
-		.SolutionFolderName = '2020'
-		.LocalDebuggerWorkingDirectory = '$BuildRootPath$/src/2020/day1'
-
-		.Name = '2020_day1'
-		.DependencyObjectLists =
-		{
-			.2020_Day1_ObjectList,
-		}
-		.ExecutableLinkerOptions = .LinkerOptionsCpp
-	]
-
-	.BuildTargets + .2020_Day1_Executable
-
-	.2020_Day2_ObjectList =
-	[
-		Using(.ObjectListCommon)
-
-		.ProjectBasePath = '$BuildRootPath$/src/2020/day2'
-		.SolutionFolderName = '2020'
-
-		.Name = '2020_day2'
-		.ObjectListCompilerOptions = .CompilerOptionsCpp
-		.CompilerInputPath = '$ProjectBasePath$'
-	]
-
-	.2020_Day2_Executable =
-	[
-		Using(.ExecutableCommon)
-
-		.SolutionFolderName = '2020'
-		.LocalDebuggerWorkingDirectory = '$BuildRootPath$/src/2020/day2'
-
-		.Name = '2020_day2'
-		.DependencyObjectLists =
-		{
-			.2020_Day2_ObjectList,
-		}
-		.ExecutableLinkerOptions = .LinkerOptionsCpp
-	]
-
-	.BuildTargets + .2020_Day2_Executable
-
-	// set up build targets
+	// fbuild $ConfigName$ / clean-$ConfigName$
 	
 	ForEach(.CompilerConfig in .CompilerConfigs)
 	{
@@ -106,7 +51,23 @@ Using(.BuildContext)
 		^BuildTargetNames + .BuildTargetNames
 	}
 
-	// set up visual studio projects & solution
+	// fbuild all / clean
+
+	.Targets + .UnityNames
+	.Targets + .BuildTargetNames
+
+	Alias('all') {}
+
+	RemoveDir('clean')
+	{
+		.RemovePaths =
+		{
+			'$IntermediateFilePath$',
+			'$BuildOutputPath$',
+		}
+	}
+
+	// fbuild sln / clean-sln
 
 	{
 		.VSContext =
@@ -182,20 +143,6 @@ Using(.BuildContext)
 			{
 				'$VisualStudioSolutionPath$',
 			}
-		}
-	}
-
-	.Targets + .UnityNames
-	.Targets + .BuildTargetNames
-
-	Alias('all') {}
-
-	RemoveDir('clean')
-	{
-		.RemovePaths =
-		{
-			'$IntermediateFilePath$',
-			'$BuildOutputPath$',
 		}
 	}
 }
