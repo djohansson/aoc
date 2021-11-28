@@ -1,0 +1,12 @@
+{
+    "files.associations": {
+        "algorithm": "cpp",
+        "concepts": "cpp",
+        "memory": "cpp",
+        "xmemory": "cpp",
+        "xstring": "cpp",
+        "xutility": "cpp",
+        "tuple": "cpp",
+        "vector": "cpp"
+    }
+}
