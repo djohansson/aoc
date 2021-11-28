@@ -1,10 +1,27 @@
 #once
 
 #include "platform-config.bff"
-#include "clang-config.bff"
-#include "powershell-config.bff"
-#include "python-config.bff"
-#include "vulkan-config.bff"
+
+.BuildContext =
+[
+	.FBuildProjectName = ""
+
+	// buildsystem target lists
+	.UnityNames = {} // unities 
+	.BuildTargets = {} // build targets
+	.BuildTargetNames = {} // build target names 
+    .Targets = {} // expanded build target lists (arch/compiler permutations)
+
+	// arch
+	.ArchitectureNames = {}
+
+	// compiler
+	.CompilerBaseConfig = []
+	.CompilerConfigs = {}
+
+	// temp
+	.ReturnValues = {}
+]
 
 .BuildRootPath = '$_WORKING_DIR_$' // should be '$_CURRENT_BFF_DIR_$' but that seems broken...
 .IntermediateFilePath = '$BuildRootPath$/build.intermediate'

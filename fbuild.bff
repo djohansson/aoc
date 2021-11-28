@@ -1,34 +1,14 @@
 #include "buildsystem/buildsystem.bff"
+#include "buildsystem/clang-config.bff"
 
-.GlobalContext =
-[
-	.FBuildProjectName = "aoc"
+Using(.BuildContext)
 
-	// buildsystem target list.
-	.Targets = {}
-
-	// arch
-	.ArchitectureNames = { '$X64String$' }
-
-	// compiler
-	.CompilerBaseConfig = .Clang_BaseConfig
-	.CompilerConfigs = .Clang_Native_Configs
-
-	// temp
-	.ReturnValues = {}
-]
-
-Using(.GlobalContext)
+.FBuildProjectName = "aoc"
+.ArchitectureNames = { '$X64String$' }
+.CompilerBaseConfig = .Clang_BaseConfig
+.CompilerConfigs = .Clang_Native_Configs
 
 {
-	.BuildContext =
-	[
-		.UnityNames = {}
-		.BuildTargets = {}
-		.BuildTargetNames = {}
-	]
-
-	Using(.BuildContext)
 	Using(.CompilerBaseConfig)
 
 	.2020_Day1_ObjectList =
