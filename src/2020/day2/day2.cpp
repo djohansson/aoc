@@ -1,7 +1,6 @@
 #include <algorithm>
 #include <fstream>
 #include <iostream>
-#include <optional>
 #include <string>
 #include <tuple>
 #include <vector>
@@ -12,16 +11,19 @@ int main()
     
     string line;
     ifstream inputFile("input.txt");
-    using Entry = tuple<int, int, char, char[23]>;
-    vector<Entry> entries;
     
     if (!inputFile.is_open())
         return -1;
 
+    constexpr auto c_maxPwdSize = 23u;
+    static const string sc_lineFormatStr = "%d-%d %c: %" + to_string(c_maxPwdSize) + "s";
+
+    using Entry = tuple<int, int, char, char[c_maxPwdSize]>;
+    vector<Entry> entries;
     while (getline(inputFile, line))
     {
         auto& [min, max, letter, pwd] = entries.emplace_back(Entry{});
-        sscanf(line.c_str(), "%d-%d %c: %23s", &min, &max, &letter, pwd);
+        sscanf(line.c_str(), sc_lineFormatStr.c_str(), &min, &max, &letter, pwd);
     }
 
     inputFile.close();
