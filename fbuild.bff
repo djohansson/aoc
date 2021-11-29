@@ -66,9 +66,11 @@ Using(.BuildContext)
 			'$BuildOutputPath$',
 		}
 	}
+}
 
+{
 	// fbuild sln / clean-sln
-
+	
 	{
 		.VSContext =
 		[
