@@ -3,3 +3,6 @@
 
 # buildsystem
 build.*
+
+# VS Code
+.vscode/*
