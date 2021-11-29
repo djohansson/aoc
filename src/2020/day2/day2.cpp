@@ -9,9 +9,7 @@ int main()
 {
     using namespace std;
     
-    string line;
     ifstream inputFile("input.txt");
-    
     if (!inputFile.is_open())
         return -1;
 
@@ -19,7 +17,9 @@ int main()
     static const string sc_lineFormatStr = "%d-%d %c: %" + to_string(c_maxPwdSize) + "s";
 
     using Entry = tuple<int, int, char, char[c_maxPwdSize]>;
+    
     vector<Entry> entries;
+    string line;
     while (getline(inputFile, line))
     {
         auto& [min, max, letter, pwd] = entries.emplace_back(Entry{});

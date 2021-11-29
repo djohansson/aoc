@@ -8,9 +8,7 @@ int main()
 {
     using namespace std;
  
-    string line;
     ifstream inputFile("input.txt");
- 
     if (!inputFile.is_open())
         return -1;
 
@@ -18,7 +16,9 @@ int main()
     static const string sc_lineFormatStr = "%" + to_string(c_colCount) + "c";
 
     using Row = array<char, c_colCount>;
+    
     vector<Row> rows;
+    string line;
     while (getline(inputFile, line))
     {
         auto& cols = rows.emplace_back(Row{});

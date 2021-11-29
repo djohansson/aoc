@@ -9,19 +9,18 @@ int main()
 {
     using namespace std;
     
-    string line;
     ifstream inputFile("input.txt");
-    vector<int> numbers;
-    optional<tuple<int, int, int>> result;
-
     if (!inputFile.is_open())
         return -1;
 
+    vector<int> numbers;
+    string line;
     while (getline(inputFile, line))
         numbers.emplace_back(stoi(line));
 
     inputFile.close();
 
+    optional<tuple<int, int, int>> result;
     for (auto i : numbers)
         for (auto j : numbers)
             if (i + j == 2020)

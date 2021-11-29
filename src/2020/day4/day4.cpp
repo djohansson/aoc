@@ -28,7 +28,7 @@ int main()
         sregex_token_iterator(inputString.begin(), inputString.end(), sc_doubleNewlineRegex, -1),
         sregex_token_iterator());
 
-    uint32_t validCount1 = 0, validCount2 = 0;
+    uint32_t part1Count = 0, part2Count = 0;
     auto passportIt = passports.begin();
     while (passportIt != passports.end())
     {
@@ -70,25 +70,23 @@ int main()
                 auto valueString = token.substr(4);
                 smatch valueMatch;
                 if (regex_match(valueString, valueMatch, valueRegex))
-                {
                     valueFlags |= mask;
-                }
             }
 
             tokenIt++;
         }
 
         if (keyFlags == 0b01111111)
-            validCount1++;
+            part1Count++;
         
         if (valueFlags == 0b01111111)
-            validCount2++;
+            part2Count++;
 
         passportIt++;
     }
 
-    cout << "validCount1: " << validCount1 << "\n";
-    cout << "validCount2: " << validCount2 << "\n";
+    cout << "part1Count: " << part1Count << "\n";
+    cout << "part2Count: " << part2Count << "\n";
 
     return 0;
 }
