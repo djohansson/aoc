@@ -2,3 +2,4 @@
 #include "day2/day2.bff"
 #include "day3/day3.bff"
 #include "day4/day4.bff"
+#include "day5/day5.bff"
