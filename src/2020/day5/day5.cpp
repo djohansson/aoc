@@ -1,8 +1,10 @@
 #pragma once
 
+#include <algorithm>
 #include <fstream>
 #include <iostream>
 #include <string>
+#include <vector>
 
 int main()
 {
@@ -12,15 +14,16 @@ int main()
     if (!inputFile.is_open())
         return -1;
 
-    int maxSeatId = 0;
+    unsigned maxSeatId = 0;
+    vector<unsigned> seatIds;
 
-    std::string pass;
+    string pass;
     while (getline(inputFile, pass))
     {
     //static const string passes[] = { "FBFBBFFRLR", "BFFFBBFRRR", "FFFBBBFRRR", "BBFFBBFRLL" };
     //for (const auto& pass : passes)
     //{
-        int row = 0, rowBit = 1 << 6, col = 0, colBit = 1 << 2;
+        unsigned row = 0, rowBit = 1 << 6, col = 0, colBit = 1 << 2;
 
         for (char c : pass)
         {
@@ -43,17 +46,31 @@ int main()
             }
         }
 
-        int seatID = row * 8 + col;
+        unsigned seatID = row * 8 + col;
 
-        cout << "pass: " << pass << "\n";
-        cout << "row: " << row << "\n";
-        cout << "col: " << col << "\n";
-        cout << "seatID: " << seatID << "\n";
+        // cout << "pass: " << pass << "\n";
+        // cout << "row: " << row << "\n";
+        // cout << "col: " << col << "\n";
+        // cout << "seatID: " << seatID << "\n";
 
         maxSeatId = max(seatID, maxSeatId);
+
+        seatIds.emplace_back(seatID);
     }
 
     cout << "maxSeatId: " << maxSeatId << "\n";
 
-    return 0;
+    sort(begin(seatIds), end(seatIds));
+
+    for (unsigned seatIt = 1; seatIt < seatIds.size(); seatIt++)
+    {
+        auto seatId = seatIds[seatIt];
+        if (seatIds[seatIt-1] + 1 != seatId)
+        {
+            cout << "seatId: " << seatIds[seatIt-1] + 1 << "\n";
+            return 0;
+        }
+    }
+
+    return -1;
 }
