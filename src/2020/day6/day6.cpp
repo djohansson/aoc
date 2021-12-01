@@ -3,6 +3,7 @@
 #include <map>
 #include <string>
 #include <vector>
+#include <utility>
 
 int main()
 {
@@ -12,28 +13,40 @@ int main()
     if (!inputFile.is_open())
         return -1;
 
-    using Group = map<char, unsigned>;
-    vector<Group> groups;
-    groups.emplace_back(Group{});
+    using Questions = map<char, unsigned>;
+    vector<pair<Questions, unsigned>> groups; // questions, group size
+    groups.emplace_back(make_pair(Questions{}, 0u));
 
-    string questions;
-    while (getline(inputFile, questions, '\n'))
+    string line;
+    while (getline(inputFile, line, '\n'))
     {
-        for (auto q : questions)
-            groups.back()[q]++;
+        auto& [questions, groupSize] = groups.back();
+
+        for (auto q : line)
+            questions[q]++;
+
+        groupSize++;
 
         if (inputFile.peek() == '\n')
         {
-            groups.emplace_back(Group{});
+            inputFile.get();
+            groups.emplace_back(make_pair(Questions{}, 0u));
             continue;
         }
     }
 
     unsigned s = 0;
-    for (const auto& g : groups)
-        s += g.size();
+    for (const auto& [questions, groupSize] : groups)
+        s += questions.size();
 
-    cout << s << "\n";
+    cout << "part1: " << s << "\n";
+
+    s = 0;
+    for (const auto& [questions, groupSize] : groups)
+        for (const auto& [question, yesCount] : questions)
+            s += (yesCount == groupSize);
+
+    cout << "part2: " << s << "\n";
 
     return 0;
 }
