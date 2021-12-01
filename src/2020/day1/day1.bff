@@ -6,12 +6,10 @@
         Using(.ObjectListCommon)
 
         .Name = 'day1'
-
         .ProjectParentFolderName = '2020'
-        .ProjectBasePath = '$BuildRootPath$/src/$ProjectParentFolderName$/$Name$'
-
+        
         .ObjectListCompilerOptions = .CompilerOptionsCpp
-        .CompilerInputPath = '$ProjectBasePath$'
+        .CompilerInputPath = '$BuildRootPath$/src/$ProjectParentFolderName$/$Name$'
     ]
 
     .Day1_Executable =
@@ -19,8 +17,8 @@
         Using(.ExecutableCommon)
 
         .Name = 'day1'
-
         .ProjectParentFolderName = '2020'
+
         .LocalDebuggerWorkingDirectory = '$BuildRootPath$/src/$ProjectParentFolderName$/$Name$'
 
         .DependencyObjectLists =

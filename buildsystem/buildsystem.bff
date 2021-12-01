@@ -39,8 +39,7 @@
 	.ProjectRebuildCommand = 'cd ^$(SolutionDir) &amp; fbuild -ide -dist -cache -clean -config $BuildRootPath$/fbuild.bff ^$(ProjectName)-^$(Configuration)'
 	.ProjectCleanCommand = 'cd ^$(SolutionDir) &amp; fbuild -ide -config $BuildRootPath$/fbuild.bff clean-^$(ProjectName)-^$(Configuration)'
     .ProjectParentFolderName = .EmptyString
-	.ProjectBasePath  = '$BuildRootPath$'
-    //.ProjectInputPathsExclude = // (optional) Paths to exclude from project
+	//.ProjectInputPathsExclude = // (optional) Paths to exclude from project
     //.ProjectFilesToExclude          // (optional) List of files to exclude from project
     //.ProjectPatternToExclude        // (optional) Pattern(s) for files to exclude from project
     //.ProjectAllowedFileExtensions   // (optional) Extensions to allow in path searches
@@ -558,6 +557,11 @@ function AddProject(.Project)
         Using(.Project)
 
         .ProjectName = '$Name$-$ProjectType$'
+        If (.ProjectParentFolderName != .EmptyString) // just because VS project & solution formats are plain old/dumb/[insert insult here]
+        {
+            ^ProjectName = '$ProjectParentFolderName$-$Name$-$ProjectType$'
+        }
+        
         .ProjectInputPaths = .UnityInputPath + .CompilerInputPath
         .ProjectFiles = .UnityInputFiles + .CompilerInputFiles
         .ProjectOutput = '$VisualStudioSolutionPath$/$ProjectParentFolderName$/$ProjectName$.vcxproj'
