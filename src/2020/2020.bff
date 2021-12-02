@@ -5,3 +5,4 @@
 #include "day5/day5.bff"
 #include "day6/day6.bff"
 #include "day7/day7.bff"
+#include "day8/day8.bff"
