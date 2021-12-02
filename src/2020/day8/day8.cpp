@@ -15,7 +15,7 @@ int main()
     enum class Op { nop, acc, jmp, };
     using Instruction = tuple<Op, int>;
     using Program = vector<Instruction>;
-    using State = tuple<unsigned, int, vector<bool>>; //pc, acc, executed
+    using State = tuple<unsigned, int>; //pc, acc
 
     Program program;
     string line;
@@ -42,8 +42,9 @@ int main()
 
     auto execute = [](const Program& program, State& state)
     {
-        auto& [pc, acc, executed] = state;
+        auto& [pc, acc] = state;
 
+        vector<bool> executed;
         executed.resize(program.size());
         
         while (pc < program.size())
@@ -80,7 +81,7 @@ int main()
     {
         State state;
         bool result = execute(program, state);
-        auto& [pc, acc, executed] = state;
+        auto& [pc, acc] = state;
         
         cout << "part1 result: " << result << "\n";
         cout << "pc: " << pc << "\n";
@@ -89,7 +90,6 @@ int main()
 
     // part 2
 
-    State state;
     for (int i = program.size() - 1; i >= 0; --i)
     {
         Program program2 = program;
@@ -110,7 +110,7 @@ int main()
 
         State state;
         bool result = execute(program2, state);
-        auto& [pc, acc, executed] = state;
+        auto& [pc, acc] = state;
 
         if (result)
         {
