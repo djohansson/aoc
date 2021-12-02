@@ -7,7 +7,6 @@
 int main()
 {
     using namespace std;
-    using namespace std;
     
     ifstream inputFile("input.txt");
     if (!inputFile.is_open())
