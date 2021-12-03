@@ -1,7 +1,9 @@
+#include <algorithm>
+#include <array>
 #include <fstream>
 #include <iostream>
-#include <list>
 #include <string>
+#include <tuple>
 #include <vector>
 
 int main()
@@ -55,29 +57,25 @@ int main()
     cout << gamma * epsilon << "\n";
 
     // part 2
-
-    list<unsigned> o2Numbers(numbers.begin(), numbers.end());
-    list<unsigned> co2Numbers(numbers.begin(), numbers.end());
-    
-    int bitIt = bitWidth - 1;
-    while (o2Numbers.size() > 1)
+    array<tuple<vector<unsigned>, bool>, 2> part2data{ make_tuple(numbers, true), make_tuple(numbers, false) };
+    auto compare = [](auto a, auto b, bool isLE) { return isLE ? a <= b : a > b; };
+    for (auto& [n, isLE] : part2data)
     {
-        bool criteria = o2Numbers.size() <= (bitCount(o2Numbers, bitIt) << 1);
-        o2Numbers.remove_if([&bitIt, &criteria](auto number) { return !!(number & (1 << bitIt)) != criteria; });
-        bitIt = (bitIt - 1) % bitWidth;
+        int bitIt = bitWidth - 1;
+        auto nEnd = end(n);
+        while (std::distance(begin(n), nEnd) > 1)
+        {
+            bool criteria = compare(n.size(), size_t(bitCount(n, bitIt) << 1), isLE);
+            nEnd = remove_if(begin(n), nEnd, [&bitIt, &criteria](auto number) { return !!(number & (1 << bitIt)) != criteria; });
+            bitIt = (bitIt - 1) % bitWidth;
+        }
+        
+        n.resize(std::distance(begin(n), nEnd));
+        
+        cout << n.back() << "\n";
     }
 
-    bitIt = bitWidth - 1;
-    while (co2Numbers.size() > 1)
-    {
-        bool criteria = co2Numbers.size() > (bitCount(co2Numbers, bitIt) << 1);
-        co2Numbers.remove_if([&bitIt, &criteria](auto number) { return !!(number & (1 << bitIt)) != criteria; });
-        bitIt = (bitIt - 1) % bitWidth;
-    }
-    
-    cout << o2Numbers.back() << "\n";
-    cout << co2Numbers.back() << "\n";
-    cout << o2Numbers.back() * co2Numbers.back() << "\n";
+    cout << get<0>(part2data[0]).back() * get<0>(part2data[1]).back() << "\n";
 
     return 0;
 }
