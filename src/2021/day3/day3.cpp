@@ -44,11 +44,9 @@ int main()
         return count;
     };
 
+    // part 1
     for (unsigned bitIt = 0; bitIt < bitWidth; bitIt++)
-    {
-        auto c = bitCount(numbers, bitIt);
-        gamma |= (c > (numbers.size() / 2) ? 1 : 0) << bitIt;
-    }
+        gamma |= (numbers.size() <= (bitCount(numbers, bitIt) << 1)) << bitIt;
 
     epsilon = ~gamma & ((1 << bitWidth) - 1);
     
@@ -56,28 +54,30 @@ int main()
     cout << epsilon << "\n";
     cout << gamma * epsilon << "\n";
 
-        // for (unsigned numberIt = 0; numberIt < numbers.size(); numberIt++)
-    //     for (unsigned bitIt = 0; bitIt < bitWidth; bitIt++)
-    //         colBitCounts[bitIt] += !!(numbers[numberIt] & (1 << (colBitCounts.size() - bitIt - 1)));
+    // part 2
 
-    // list<unsigned> o2Numbers(numbers.begin(), numbers.end());
-    // vector<unsigned> o2ColBitCounts = colBitCounts;
-    // for (unsigned bitIt = 0; bitIt < colBitCounts.size(); bitIt++)
-    // {
-    //     auto o2NumberIt = o2Numbers.begin();
-    //     while (o2NumberIt != o2Numbers.end())
-    //     {
-    //         if (*o2NumberIt ^ (1 << (colBitCounts.size() - bitIt - 1)))
-    //             o2NumberIt = o2Numbers.erase(o2NumberIt);
-    //         else
-    //             ++o2NumberIt;
-    //     }
-
-    // }
+    list<unsigned> o2Numbers(numbers.begin(), numbers.end());
+    list<unsigned> co2Numbers(numbers.begin(), numbers.end());
     
-    
+    int bitIt = bitWidth - 1;
+    while (o2Numbers.size() > 1)
+    {
+        bool criteria = o2Numbers.size() <= (bitCount(o2Numbers, bitIt) << 1);
+        o2Numbers.remove_if([&bitIt, &criteria](auto number) { return !!(number & (1 << bitIt)) != criteria; });
+        bitIt = (bitIt - 1) % bitWidth;
+    }
 
-    //vector<unsigned> co2Numbers = numbers;
+    bitIt = bitWidth - 1;
+    while (co2Numbers.size() > 1)
+    {
+        bool criteria = co2Numbers.size() > (bitCount(co2Numbers, bitIt) << 1);
+        co2Numbers.remove_if([&bitIt, &criteria](auto number) { return !!(number & (1 << bitIt)) != criteria; });
+        bitIt = (bitIt - 1) % bitWidth;
+    }
+    
+    cout << o2Numbers.back() << "\n";
+    cout << co2Numbers.back() << "\n";
+    cout << o2Numbers.back() * co2Numbers.back() << "\n";
 
     return 0;
 }
