@@ -52,7 +52,7 @@ int main()
         assert(secondLine.size() == 0);
     }
 
-    using BingoBoard = tuple<map<unsigned, tuple<unsigned, unsigned>>, vector<unsigned>, vector<unsigned>>; // board (key, [indices]), rowMasks, colMasks
+    using BingoBoard = tuple<map<unsigned, tuple<unsigned, unsigned>>, vector<unsigned>, vector<unsigned>, bool>;
 
     size_t rowCount = 0;
     size_t colCount = 0;
@@ -69,7 +69,7 @@ int main()
             unsigned col = 0;
             for (const auto& lineNumber : lineNumbers)
             {
-                auto& [boardMap, rowMasks, colMasks] = board;
+                auto& [boardMap, rowMasks, colMasks, bingo] = board;
                 boardMap[stoi(lineNumber)] = make_tuple(row, col);
 
                 ++col;
@@ -88,9 +88,7 @@ int main()
         boards.emplace_back(move(board));
     }
 
-    cout << boards.size() << "\n";
-
-    for (auto& [boardMap, rowMasks, colMasks] : boards)
+    for (auto& [boardMap, rowMasks, colMasks, bingo] : boards)
     {
         rowMasks.resize(rowCount);
         colMasks.resize(colCount);
@@ -98,40 +96,49 @@ int main()
 
     for (auto number : numbers)
     {
-        for (auto& [boardMap, rowMasks, colMasks] : boards)
+        for (auto& board : boards)
         {
+            auto& [boardMap, rowMasks, colMasks, bingo] = board;
             auto boardIt = boardMap.find(number);
-            if (boardIt == boardMap.end())
+            if (bingo || boardIt == boardMap.end())
                 continue;
 
             const auto& [row, col] = boardIt->second;
             rowMasks[row] |= 1 << col;
             colMasks[col] |= 1 << row;
 
-            if (rowMasks[row] == ((1 << colCount) - 1) || colMasks[col] == ((1 << rowCount) - 1))
+            auto checkBingo = [&board, &boardIt, &colCount, &rowCount, &number]()
             {
-                cout << "BINGO" << "\n";
-                unsigned unmarkedSum = 0;
-                for (const auto& [bNumber, bRowCol] : boardMap)
+                auto& [boardMap, rowMasks, colMasks, bingo] = board;
+                const auto& [row, col] = boardIt->second;
+                if (rowMasks[row] == ((1 << colCount) - 1) || colMasks[col] == ((1 << rowCount) - 1))
                 {
-                    const auto& [bRow, bCol] = bRowCol;
+                    unsigned unmarkedSum = 0;
+                    for (const auto& [bNumber, bRowCol] : boardMap)
+                    {
+                        const auto& [bRow, bCol] = bRowCol;
 
-                    bool rowMarked = rowMasks[bRow] & (1 << bCol);
-                    bool colMarked = colMasks[bCol] & (1 << bRow);
+                        bool rowMarked = rowMasks[bRow] & (1 << bCol);
+                        bool colMarked = colMasks[bCol] & (1 << bRow);
 
-                    assert(rowMarked == colMarked);
+                        assert(rowMarked == colMarked);
 
-                    if (!rowMarked && !colMarked)
-                        unmarkedSum += bNumber;
+                        if (!rowMarked && !colMarked)
+                            unmarkedSum += bNumber;
+                    }
+
+                    bingo = true;
+
+                    return unmarkedSum * number;
                 }
-                
-                cout << unmarkedSum << "\n";
-                cout << unmarkedSum * number << "\n";
 
-                return 0;
-            }
+                return 0u;
+            };
+
+            if (unsigned result = checkBingo(); result)
+                cout << result << "\n";
         }
     }
 
-    return -1;
+    return 0;
 }
