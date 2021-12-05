@@ -19,6 +19,7 @@ int main()
         return -1;
 
     static const string sc_lineFormatStr = "%d,%d -> %d,%d";
+    
     using Vec = tuple<int, int>;
     using Line = tuple<Vec, Vec>;
     vector<Line> lines;
@@ -34,7 +35,7 @@ int main()
 
         //if (p1x == p2x || p1y == p2y) // part1
         {
-            cout << p1x << "," << p1y << " -> " << p2x << "," << p2y << "\n";
+            //cout << p1x << "," << p1y << " -> " << p2x << "," << p2y << "\n";
             lines.emplace_back(move(line));
         }
     }
@@ -48,10 +49,10 @@ int main()
         const auto& [p1x, p1y] = p1;
         const auto& [p2x, p2y] = p2;
         
-        Vec d = { p2x - p1x, p2y - p1y };
-        const auto& [dx, dy] = d;
-        Vec s = { sgn(dx), sgn(dy) };
+        Vec s = { p2x - p1x, p2y - p1y };
         const auto& [sx, sy] = s;
+        Vec d = { sgn(sx), sgn(sy) };
+        const auto& [dx, dy] = d;
 
         Vec p = p1;
         auto& [px, py] = p;
@@ -60,22 +61,18 @@ int main()
 
         while (px != p2x || py != p2y)
         {
-            px += sx;
-            py += sy;
+            px += dx;
+            py += dy;
 
             visited[p] += 1;
         }
     }
 
-    unsigned visitedAtLeastTwice = 0;
-    for (const auto& v : visited)
-    {
-        const auto& [p, count] = v;
-        if (count > 1)
-            ++visitedAtLeastTwice;
-    }
+    unsigned result = 0;
+    for (const auto& [p, count] : visited)
+        result += (count > 1);
 
-    cout << visitedAtLeastTwice << "\n";
+    cout << result << "\n";
 
     return 0;
 }
