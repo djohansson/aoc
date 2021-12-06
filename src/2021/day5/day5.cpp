@@ -18,7 +18,7 @@ int main()
     if (!inputFile.is_open())
         return -1;
 
-    static const string sc_lineFormatStr = "%d,%d -> %d,%d";
+    static constexpr string_view sc_lineFormatStr = "%d,%d -> %d,%d";
     
     using Vec = tuple<int, int>;
     using Line = tuple<Vec, Vec>;
@@ -31,7 +31,7 @@ int main()
         auto& [p1, p2] = line;
         auto& [p1x, p1y] = p1;
         auto& [p2x, p2y] = p2;
-        sscanf(lineString.c_str(), sc_lineFormatStr.c_str(), &p1x, &p1y, &p2x, &p2y);
+        sscanf(lineString.c_str(), sc_lineFormatStr.data(), &p1x, &p1y, &p2x, &p2y);
 
         //if (p1x == p2x || p1y == p2y) // part1
         {
