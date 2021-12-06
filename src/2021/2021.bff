@@ -3,3 +3,4 @@
 #include "day3/day3.bff"
 #include "day4/day4.bff"
 #include "day5/day5.bff"
+#include "day6/day6.bff"
