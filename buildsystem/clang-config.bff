@@ -20,7 +20,7 @@
 #import LLVM_VERSION
 	.LLVMVersion = '$LLVM_VERSION$'
 #else
-	.LLVMVersion = '12.0.1'
+	.LLVMVersion = '13.0.0'
 #endif // exists(LLVM_VERSION)
 	.Executable = '$LLVMPath$/bin/clang$ExeSuffix$'
 	.CompilerInfo = 'Clang'
@@ -39,7 +39,7 @@
 	.PlatformInfo = 'Linux'
 #endif //__LINUX__
 	.Compiler = 'Compiler-Clang'
-	.CompilerOptions = '-o "%2" "%1" -c -g -fms-extensions -frtti -Wall'
+	.CompilerOptions = '-o "%2" "%1" -c -g -fms-extensions -Wall'
 		+ ' -isystem $LLVMPath$/include'
 		+ ' -isystem $LLVMPath$/lib/clang/$LLVMVersion$/include'
 		+ .PlatformIncludePaths
