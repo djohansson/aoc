@@ -55,7 +55,7 @@ int main()
         for (const auto& p2 : positions)
             result += cost(abs(int(p2 - p)));
         
-        return result < prev ? result : prev;
+        return min(prev, result);
     };
 
     vector<unsigned> n(maxPos - minPos);
