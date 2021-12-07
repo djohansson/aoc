@@ -43,19 +43,33 @@ int main()
             unsigned number = stoul(numberString);
             positions.emplace_back(number);
             minPos = min(number, minPos);
-            maxPos = min(number, maxPos);
+            maxPos = max(number, maxPos);
         }
     
     auto fuelCost = [&positions](unsigned prev, int p)
     {
-        unsigned cost = 0;
-        for (const auto& p2 : positions)
-            cost += abs(int(p2 - p));
+        auto cost = [](int n)
+        {
+            //int result = (n - 1) * n / 2;
+            int result = 0;
+
+            while (n > 0)
+                result += n--;
+
+
+            return result;
+        };
         
-        return cost < prev ? cost : prev;
+        unsigned result = 0;
+        for (const auto& p2 : positions)
+            result += cost(abs(int(p2 - p)));
+        
+        return result < prev ? result : prev;
     };
 
-    cout << accumulate(begin(positions), end(positions), ~0u, fuelCost) << "\n";
+    vector<unsigned> n(maxPos - minPos);
+    iota(begin(n), end(n), minPos);
+    cout << accumulate(begin(n), end(n), ~0u, fuelCost) << "\n";
 
     return 0;
 }
