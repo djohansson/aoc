@@ -46,19 +46,10 @@ int main()
             maxPos = max(number, maxPos);
         }
     
-    auto fuelCost = [&positions](unsigned prev, int p)
+    auto minimizeAggregatedCost = [&positions](unsigned prev, int p)
     {
-        auto cost = [](int n)
-        {
-            //int result = (n - 1) * n / 2;
-            int result = 0;
-
-            while (n > 0)
-                result += n--;
-
-
-            return result;
-        };
+        //auto cost = [](int n) { return n; }; // part 1
+        auto cost = [](int n) { return (n * (n + 1)) / 2; };
         
         unsigned result = 0;
         for (const auto& p2 : positions)
@@ -69,7 +60,7 @@ int main()
 
     vector<unsigned> n(maxPos - minPos);
     iota(begin(n), end(n), minPos);
-    cout << accumulate(begin(n), end(n), ~0u, fuelCost) << "\n";
+    cout << accumulate(begin(n), end(n), ~0u, minimizeAggregatedCost) << "\n";
 
     return 0;
 }
