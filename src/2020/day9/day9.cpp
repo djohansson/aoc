@@ -44,9 +44,11 @@ int main()
         return false;
     };
 
-    auto invalid = find_if_not(begin(numbers), end(numbers), isValid);
-    if (invalid != end(numbers))
-        cout << *invalid << "\n";
+    auto invalid = find_if_not(cbegin(numbers), cend(numbers), isValid);
+    if (invalid == cend(numbers))
+        return -1;
+    
+    cout << *invalid << "\n";
 
     // part 2
     auto rangeStartIt = cbegin(numbers);
@@ -65,7 +67,11 @@ int main()
     }
 
 part2end:
+    
     auto [rangeMinIt, rangeMaxIt] = minmax_element(rangeStartIt, rangeEndIt);
+    if (rangeMinIt == cend(numbers) || rangeMaxIt == cend(numbers))
+        return -1;
+    
     cout << *rangeMinIt + *rangeMaxIt << "\n";
 
     return 0;
