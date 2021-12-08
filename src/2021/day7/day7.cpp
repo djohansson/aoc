@@ -33,34 +33,26 @@ int main()
     if (!inputFile.is_open())
         return -1;
 
-    vector<unsigned> positions;
-    unsigned minPos = ~0U, maxPos = 0;
-
+    vector<unsigned> ps;
     string line;
     while (getline(inputFile, line, '\n'))
-        for (auto numberString : split(line, ','))
-        {
-            unsigned number = stoul(numberString);
-            positions.emplace_back(number);
-            minPos = min(number, minPos);
-            maxPos = max(number, maxPos);
-        }
-    
-    auto minimizeAggregatedCost = [&positions](unsigned prev, int p)
-    {
-        //auto cost = [](int n) { return n; }; // part 1
-        auto cost = [](int n) { return (n * (n + 1)) / 2; };
-        
-        unsigned result = 0;
-        for (const auto& p2 : positions)
-            result += cost(abs(int(p2 - p)));
-        
-        return min(prev, result);
-    };
+        for (auto str : split(line, ','))
+            ps.emplace_back(stoul(str));
 
-    vector<unsigned> n(maxPos - minPos);
-    iota(begin(n), end(n), minPos);
-    cout << accumulate(begin(n), end(n), ~0u, minimizeAggregatedCost) << "\n";
+    auto [minp, maxp] = minmax_element(begin(ps), end(ps));
+    vector<unsigned> n(*maxp - *minp);
+    iota(begin(n), end(n), *minp);
+    auto result = accumulate(begin(n), end(n), ~0u, [&ps](auto prev, auto p)
+    {
+        return min(prev, accumulate(begin(ps), end(ps), 0u,[&p](auto prev, auto p2)
+        {
+            //auto cost = [](int n) { return n; }; // part 1
+            auto cost = [](int n) { return (n * (n + 1)) / 2; };
+            return prev + cost(abs(static_cast<int>(p2 - p)));
+        }));
+    });
+    
+    cout << result << "\n";
 
     return 0;
 }

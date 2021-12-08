@@ -34,27 +34,23 @@ int main()
     if (!inputFile.is_open())
         return -1;
 
-    using SignalPatterns = vector<string>;
-    using OutputValue = vector<string>;
-    using Entry = tuple<SignalPatterns, OutputValue>;
-
-    vector<Entry> entries;
+    vector<array<vector<string>, 2>> entries;
     string line;
     while (getline(inputFile, line, '\n'))
     {
         auto s = split(line, '|');
-        auto& [sp, o] = entries.emplace_back();
-        sp = split(*s.begin(), ' ');
-        o = split(*next(s.begin()), ' ');
+        auto& [ps, os] = entries.emplace_back();
+        ps = split(*s.begin(), ' ');
+        os = split(*next(s.begin()), ' ');
     }
 
     unsigned count = 0;
-    for (auto& [sp, o] : entries)
+    for (auto& [ps, os] : entries)
     {
-        for (auto& p : sp)
+        for (auto& p : ps)
             sort(p.begin(), p.end());
 
-        for (auto& s : o)
+        for (auto& s : os)
         {
             sort(s.begin(), s.end());
             count += (s.size() == 2 || s.size() == 3 || s.size() == 4 || s.size() == 7);
@@ -64,11 +60,11 @@ int main()
     cout << "Count: " << count << "\n"; // part 1
 
     unsigned sum = 0;
-    for (const auto& [sp, so] : entries)
+    for (const auto& [ps, os] : entries)
     {
         array<string, 10> patterns;
 
-        for (const auto& p : sp)
+        for (const auto& p : ps)
         {
             if (p.size() == 2)
                 patterns[1] = p;
@@ -80,7 +76,7 @@ int main()
                 patterns[8] = p;
         }
 
-        for (const auto& p : sp)
+        for (const auto& p : ps)
         {
             if (p.size() == 5) // 2, 3, 5
             {
@@ -126,7 +122,7 @@ int main()
 
         unsigned value = 0;
         unsigned base = 1000;
-        for (const auto& s : so)
+        for (const auto& s : os)
             for (unsigned i = 0; i < patterns.size(); ++i)
                 if (s == patterns[i])
                 {
