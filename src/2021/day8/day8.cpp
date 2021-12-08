@@ -124,19 +124,15 @@ int main()
             }
         }
 
-        vector<unsigned> digits;
-        for (const auto& s : so)
-            for (unsigned pIt = 0; pIt < patterns.size(); ++pIt)
-                if (s == patterns[pIt])
-                    digits.emplace_back(pIt);
-
         unsigned value = 0;
-        unsigned base = 1;
-        for (auto it = digits.crbegin(); it != digits.crend(); ++it)
-        {
-            value += *it * base;
-            base *= 10;
-        }
+        unsigned base = 1000;
+        for (const auto& s : so)
+            for (unsigned i = 0; i < patterns.size(); ++i)
+                if (s == patterns[i])
+                {
+                    value += i * base;
+                    base /= 10;
+                }
 
         sum += value;
     }
