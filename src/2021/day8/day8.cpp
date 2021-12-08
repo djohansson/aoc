@@ -3,11 +3,8 @@
 #include <algorithm>
 #include <iostream>
 #include <fstream>
-#include <map>
 #include <string>
-#include <string_view>
 #include <sstream>
-#include <tuple>
 #include <vector>
 
 using namespace std;
@@ -142,8 +139,6 @@ int main()
         }
 
         sum += value;
-
-        //cout << value << "\n";
     }
 
     cout << "Sum: " << sum << "\n"; // part 2
