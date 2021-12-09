@@ -29,7 +29,7 @@ bool contains(unsigned x, unsigned y, const Basin& basin)
     return binary_search(begin(basin.first), end(basin.first), Coords{x, y});
 }
 
-unsigned expandBasin(unsigned x, unsigned y, unsigned rowSize, Heights& heights, Basin& basin)
+unsigned expand(unsigned x, unsigned y, unsigned rowSize, Heights& heights, Basin& basin)
 {
     if (contains(x, y, basin))
         return 0;
@@ -45,10 +45,10 @@ unsigned expandBasin(unsigned x, unsigned y, unsigned rowSize, Heights& heights,
 
     unsigned result = 1u;
 
-    result += expandBasin(x - 1, y, rowSize, heights, basin);
-    result += expandBasin(x + 1, y, rowSize, heights, basin);
-    result += expandBasin(x, y - 1, rowSize, heights, basin);
-    result += expandBasin(x, y + 1, rowSize, heights, basin);
+    result += expand(x - 1, y, rowSize, heights, basin);
+    result += expand(x + 1, y, rowSize, heights, basin);
+    result += expand(x, y - 1, rowSize, heights, basin);
+    result += expand(x, y + 1, rowSize, heights, basin);
     
     return result;
 };
@@ -61,14 +61,15 @@ int main()
 
     Heights heights;
     string line;
-    unsigned rowIt = 0;
+    unsigned colSize = 0;
     unsigned rowSize = 0;
+
     while (getline(inputFile, line, '\n'))
     {
         rowSize = max(unsigned(line.size()) + 2, rowSize);
         heights.resize(heights.size() + rowSize);
         
-        if (rowIt++ == 0)
+        if (colSize++ == 0)
         {
             fill(begin(heights), end(heights), ~0u);
             heights.resize(heights.size() + rowSize);
@@ -82,13 +83,11 @@ int main()
 
         if (inputFile.peek() == char_traits<char>::eof())
         {
-            rowIt++;
+            colSize += 2;
             heights.resize(heights.size() + rowSize);
             fill(end(heights) - rowSize, end(heights), ~0u);
         }
     }
-
-    unsigned colSize = rowIt + 1;
 
     vector<pair<Coords, Basin>> basins;
 
@@ -109,8 +108,9 @@ int main()
 
     // part 2
     vector<unsigned> basinSizes;
+
     for (auto& [key, basin] : basins)
-        basinSizes.emplace_back(expandBasin(key.first, key.second, rowSize, heights, basin));
+        basinSizes.emplace_back(expand(key.first, key.second, rowSize, heights, basin));
 
     sort(begin(basinSizes), end(basinSizes), std::greater<>());
 
