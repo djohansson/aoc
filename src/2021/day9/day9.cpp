@@ -1,31 +1,57 @@
 
+#include <algorithm>
 #include <iostream>
 #include <fstream>
 #include <numeric>
 #include <string>
-#include <sstream>
 #include <vector>
+#include <utility>
 
 using namespace std;
 
-vector<string>& split(const string& s, char delim, vector<string>& elems)
+using Coords = pair<unsigned, unsigned>;
+using Heights = vector<unsigned>;
+using CoordSet = vector<Coords>;
+using Basin = pair<CoordSet, unsigned>;
+
+unsigned idx(unsigned x, unsigned y, unsigned rowSize)
 {
-    stringstream ss(s);
-    string item;
-    while (getline(ss, item, delim))
-    {
-        if (item.length() > 0)
-            elems.push_back(item);
-    }
-    return elems;
+    return y * rowSize + x;
 }
 
-vector<string> split(const string& s, char delim)
+unsigned sample(unsigned x, unsigned y, unsigned rowSize, Heights& heights)
 {
-    vector<string> elems;
-    split(s, delim, elems);
-    return elems;
+    return heights[idx(x, y, rowSize)];
+};
+
+bool contains(unsigned x, unsigned y, const Basin& basin)
+{
+    return binary_search(begin(basin.first), end(basin.first), Coords{x, y});
 }
+
+unsigned expandBasin(unsigned x, unsigned y, unsigned rowSize, Heights& heights, Basin& basin)
+{
+    if (contains(x, y, basin))
+        return 0;
+
+    auto h = sample(x, y, rowSize, heights);
+    if (h >= 9)
+        return 0;
+
+    auto& [coords, lp] = basin;
+    lp = min(h, lp);
+    coords.emplace_back(Coords{x, y});
+    sort(begin(coords), end(coords));
+
+    unsigned result = 1u;
+
+    result += expandBasin(x - 1, y, rowSize, heights, basin);
+    result += expandBasin(x + 1, y, rowSize, heights, basin);
+    result += expandBasin(x, y - 1, rowSize, heights, basin);
+    result += expandBasin(x, y + 1, rowSize, heights, basin);
+    
+    return result;
+};
 
 int main()
 {
@@ -33,70 +59,62 @@ int main()
     if (!inputFile.is_open())
         return -1;
 
-    vector<vector<unsigned>> heights;
+    Heights heights;
     string line;
+    unsigned rowIt = 0;
+    unsigned rowSize = 0;
     while (getline(inputFile, line, '\n'))
     {
-        auto& row = heights.emplace_back();
-        row.reserve(line.size());
-        for (auto c : line)
-            row.emplace_back(static_cast<unsigned>(c) - 48);
-    }
-
-    vector<unsigned> lp;
-
-    for (unsigned y = 0; y < heights.size(); y++)
-        for (unsigned x = 0; x < heights[y].size(); x++)
+        rowSize = max(unsigned(line.size()) + 2, rowSize);
+        heights.resize(heights.size() + rowSize);
+        
+        if (rowIt++ == 0)
         {
-            int h = heights[y][x];
-            if (x == 0 && y == 0)
-            {
-                if (h < min(heights[y][x+1], heights[y+1][x]))
-                    lp.emplace_back(h);
-            }
-            else if (x == (heights[y].size() - 1) && y == (heights.size() - 1))
-            {
-                if (h < min(heights[y][x-1], heights[y-1][x]))
-                    lp.emplace_back(h);
-            }
-            else if (x == 0 && y == (heights.size() - 1))
-            {
-                if (h < min(heights[y][x+1], heights[y-1][x]))
-                    lp.emplace_back(h);
-            }
-            else if (x == (heights[y].size() - 1) && y == 0)
-            {
-                if (h < min(heights[y+1][x], heights[y][x-1]))
-                    lp.emplace_back(h);
-            }
-            else if (x == 0)
-            {
-                if (h < min(heights[y][x+1], min(heights[y+1][x], heights[y-1][x])))
-                    lp.emplace_back(h);
-            }
-            else if (x == (heights[y].size() - 1))
-            {
-                if (h < min(heights[y][x-1], min(heights[y+1][x], heights[y-1][x])))
-                    lp.emplace_back(h);
-            }
-            else if (y == 0)
-            {
-                if (h < min(min(heights[y][x+1], heights[y][x-1]), heights[y+1][x]))
-                    lp.emplace_back(h);
-            }
-            else if (y == (heights.size() - 1))
-            {
-                if (h < min(min(heights[y][x-1], heights[y][x+1]), heights[y-1][x]))
-                    lp.emplace_back(h);
-            }
-            else
-            {
-                if (h < min(min(heights[y][x-1], heights[y][x+1]), min(heights[y-1][x], heights[y+1][x])))
-                    lp.emplace_back(h);
-            }
+            fill(begin(heights), end(heights), ~0u);
+            heights.resize(heights.size() + rowSize);
         }
 
-    cout << accumulate(begin(lp), end(lp), 0u, [](auto prev, auto p){ return prev + p + 1; }) << "\n";
+        auto colIt = end(heights) - rowSize;
+        *(colIt++) = ~0u;
+        for (auto c : line)
+            *(colIt++) = static_cast<unsigned>(c) - 48u;
+        *(colIt++) = ~0u;
+
+        if (inputFile.peek() == char_traits<char>::eof())
+        {
+            rowIt++;
+            heights.resize(heights.size() + rowSize);
+            fill(end(heights) - rowSize, end(heights), ~0u);
+        }
+    }
+
+    unsigned colSize = rowIt + 1;
+
+    vector<pair<Coords, Basin>> basins;
+
+    for (unsigned y = 1; y < colSize - 1; y++)
+        for (unsigned x = 1; x < rowSize - 1; x++)
+        {
+            auto h = sample(x, y, rowSize, heights);
+            auto h00 = sample(x - 1, y, rowSize, heights);
+            auto h01 = sample(x + 1, y, rowSize, heights);
+            auto h10 = sample(x, y - 1, rowSize, heights);
+            auto h11 = sample(x, y + 1, rowSize, heights);
+            if (h < min(min(h00, h01), min(h10, h11)))
+                basins.emplace_back(make_pair(make_pair(x, y), make_pair(CoordSet{}, h)));
+        }
+
+    // part 1
+    cout << accumulate(begin(basins), end(basins), 0u, [](auto prev, const auto& p) { return prev + p.second.second + 1; }) << "\n";
+
+    // part 2
+    vector<unsigned> basinSizes;
+    for (auto& [key, basin] : basins)
+        basinSizes.emplace_back(expandBasin(key.first, key.second, rowSize, heights, basin));
+
+    sort(begin(basinSizes), end(basinSizes), std::greater<>());
+
+    cout << accumulate(begin(basinSizes), next(begin(basinSizes), 3), 1u, [](auto prev, auto s) { return prev * s; }) << "\n";
 
     return 0;
 }
