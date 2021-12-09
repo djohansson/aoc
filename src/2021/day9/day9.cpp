@@ -7,29 +7,31 @@
 #include <vector>
 #include <utility>
 
-using namespace std;
+namespace aoc
+{
 
+using namespace std;
 using Coords = pair<unsigned, unsigned>;
 using Heights = vector<unsigned>;
 using CoordSet = vector<Coords>;
 using Basin = pair<CoordSet, unsigned>;
 
-unsigned idx(unsigned x, unsigned y, unsigned rowSize)
+static inline unsigned idx(unsigned x, unsigned y, unsigned rowSize)
 {
     return y * rowSize + x;
 }
 
-unsigned sample(unsigned x, unsigned y, unsigned rowSize, Heights& heights)
+static inline unsigned sample(unsigned x, unsigned y, unsigned rowSize, const Heights& heights)
 {
     return heights[idx(x, y, rowSize)];
 };
 
-bool contains(unsigned x, unsigned y, const Basin& basin)
+static inline bool contains(unsigned x, unsigned y, const Basin& basin)
 {
-    return binary_search(begin(basin.first), end(basin.first), Coords{x, y});
+    return binary_search(begin(basin.first), end(basin.first), Coords{ x, y });
 }
 
-unsigned expand(unsigned x, unsigned y, unsigned rowSize, Heights& heights, Basin& basin)
+static unsigned expand(unsigned x, unsigned y, unsigned rowSize, const Heights& heights, Basin& basin)
 {
     if (contains(x, y, basin))
         return 0;
@@ -39,31 +41,33 @@ unsigned expand(unsigned x, unsigned y, unsigned rowSize, Heights& heights, Basi
         return 0;
 
     auto& [coords, lp] = basin;
+    coords.emplace_back(Coords{ x, y });
     lp = min(h, lp);
-    coords.emplace_back(Coords{x, y});
+
     sort(begin(coords), end(coords));
 
-    unsigned result = 1u;
+    return 1 +
+        expand(x - 1, y, rowSize, heights, basin) +
+        expand(x + 1, y, rowSize, heights, basin) +
+        expand(x, y - 1, rowSize, heights, basin) +
+        expand(x, y + 1, rowSize, heights, basin);
+}
 
-    result += expand(x - 1, y, rowSize, heights, basin);
-    result += expand(x + 1, y, rowSize, heights, basin);
-    result += expand(x, y - 1, rowSize, heights, basin);
-    result += expand(x, y + 1, rowSize, heights, basin);
-    
-    return result;
-};
+} // namespace aoc
 
 int main()
 {
+    using namespace aoc;
+
     ifstream inputFile("input.txt");
     if (!inputFile.is_open())
         return -1;
 
     Heights heights;
-    string line;
     unsigned colSize = 0;
     unsigned rowSize = 0;
 
+    string line;
     while (getline(inputFile, line, '\n'))
     {
         rowSize = max(unsigned(line.size()) + 2, rowSize);
@@ -75,12 +79,9 @@ int main()
             heights.resize(heights.size() + rowSize);
         }
 
-        auto colIt = end(heights) - rowSize;
-        *(colIt++) = ~0u;
-        for (auto c : line)
-            *(colIt++) = static_cast<unsigned>(c) - 48u;
-        *(colIt++) = ~0u;
-
+        generate_n(end(heights) - rowSize + 1, line.size(), [cIt = line.begin()]() mutable { return static_cast<unsigned>(*cIt++) - 48u; });
+        *(end(heights) - 1) = *(end(heights) - rowSize) = ~0u;
+        
         if (inputFile.peek() == char_traits<char>::eof())
         {
             colSize += 2;
@@ -90,7 +91,6 @@ int main()
     }
 
     vector<pair<Coords, Basin>> basins;
-
     for (unsigned y = 1; y < colSize - 1; y++)
         for (unsigned x = 1; x < rowSize - 1; x++)
         {
@@ -100,21 +100,23 @@ int main()
             auto h10 = sample(x, y - 1, rowSize, heights);
             auto h11 = sample(x, y + 1, rowSize, heights);
             if (h < min(min(h00, h01), min(h10, h11)))
-                basins.emplace_back(make_pair(make_pair(x, y), make_pair(CoordSet{}, h)));
+                basins.emplace_back(make_pair(Coords{x, y}, Basin{CoordSet{}, h}));
         }
 
     // part 1
-    cout << accumulate(begin(basins), end(basins), 0u, [](auto prev, const auto& p) { return prev + p.second.second + 1; }) << "\n";
+    cout << accumulate(begin(basins), end(basins), 0u,
+        [](auto prev, const auto& p) { return prev + p.second.second + 1; }) << "\n";
 
     // part 2
     vector<unsigned> basinSizes;
-
+    basinSizes.reserve(basins.size());
     for (auto& [key, basin] : basins)
         basinSizes.emplace_back(expand(key.first, key.second, rowSize, heights, basin));
 
-    sort(begin(basinSizes), end(basinSizes), std::greater<>());
+    sort(begin(basinSizes), end(basinSizes), greater<>());
 
-    cout << accumulate(begin(basinSizes), next(begin(basinSizes), 3), 1u, [](auto prev, auto s) { return prev * s; }) << "\n";
+    cout << accumulate(begin(basinSizes), next(begin(basinSizes), min(unsigned(basinSizes.size()), 3u)), 1u,
+        [](auto prev, auto s) { return prev * s; }) << "\n";
 
     return 0;
 }
