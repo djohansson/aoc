@@ -7,3 +7,4 @@
 #include "day7/day7.bff"
 #include "day8/day8.bff"
 #include "day9/day9.bff"
+#include "day10/day10.bff"
