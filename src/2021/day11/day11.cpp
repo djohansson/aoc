@@ -33,7 +33,7 @@ static inline void flash(uint16_t x, uint16_t y, uint16_t rowSize, T& data, uint
     if (val & cx_flashBit)
         return;
 
-    if (val > 9)
+    if (++val > 9)
     {
         val = cx_flashBit;
         count += 1;
@@ -41,20 +41,7 @@ static inline void flash(uint16_t x, uint16_t y, uint16_t rowSize, T& data, uint
         for (auto yIt = y - 1; yIt <= y + 1; ++yIt)
             for (auto xIt = x - 1; xIt <= x + 1; ++xIt)
                 if (xIt != x || yIt != y)
-                {
-                    auto& val2 = data[index(xIt, yIt, rowSize)];
-                    
-                    if (val2 == cx_border)
-                        continue;
-
-                    if (val2 & cx_flashBit)
-                        continue;
-
-                    ++val2;
-                        
                     flash(xIt, yIt, rowSize, data, count);
-                }
-                    
     }
 }
 
@@ -118,8 +105,6 @@ int main()
     {
         uint32_t count = 0;
 
-        for_each(begin(data), end(data), [](auto& level) { level = (level == cx_border ? cx_border : level + 1); });
-
         for (uint16_t yIt = 1; yIt < colSize - 1; ++yIt)
             for (uint16_t xIt = 1; xIt < rowSize - 1; ++xIt)
                 flash(xIt, yIt, rowSize, data, count);
@@ -132,14 +117,20 @@ int main()
     cout << "Before any steps:" << "\n";
     print(current);
 
-    uint32_t flashCount = 0;
+    uint32_t flashCount100 = 0;
     uint32_t firstSync = 0;
 
-    for (uint32_t i = 1; i <= 500; i++)
+    uint32_t i = 0;
+    while (!firstSync || (i <= 100))
     {
-        //cout << "After step: " << i << "\n";
-        flashCount += step(current);
-        //print(current);
+        cout << "After step: " << i++ << "\n";
+
+        auto flashCount = step(current);
+
+        print(current);
+
+        if (i <= 100)
+            flashCount100 += flashCount;
 
         if (!firstSync)
         {
@@ -154,7 +145,7 @@ int main()
         }
     }
 
-    cout << "Flash count: " << flashCount << "\n";
+    cout << "Flash count at step 100: " << flashCount100 << "\n";
     cout << "First sync: " << firstSync << "\n";
 
     return 0;
