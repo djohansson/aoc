@@ -23,7 +23,7 @@ static inline unsigned index(uint16_t x, uint16_t y, uint16_t rowSize)
 }
 
 template <typename T>
-static inline void flash(uint16_t x, uint16_t y, uint16_t rowSize, T& data, uint32_t& count)
+static void flash(uint16_t x, uint16_t y, uint16_t rowSize, T& data, uint32_t& count)
 {
     auto& val = data[index(x, y, rowSize)];
 
@@ -87,7 +87,7 @@ int main()
     {
         for_each(begin(data), end(data), [idx = 0, rowSize](auto level) mutable
         {
-            cout << std::right << setw(2);
+            cout << right << setw(2);
             
             if (level == cx_border)
                 cout << '#';
@@ -119,8 +119,8 @@ int main()
 
     uint32_t flashCount100 = 0;
     uint32_t firstSync = 0;
-
     uint32_t i = 0;
+    
     while (!firstSync || (i <= 100))
     {
         cout << "After step: " << i++ << "\n";
