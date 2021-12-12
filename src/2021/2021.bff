@@ -9,3 +9,4 @@
 #include "day9/day9.bff"
 #include "day10/day10.bff"
 #include "day11/day11.bff"
+#include "day12/day12.bff"
