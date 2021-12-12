@@ -15,9 +15,7 @@ namespace aoc
 using namespace std;
 
 enum class CaveType : uint8_t { small, large };
-using Paths = vector<string>;
-using Trail = vector<string>;
-using CaveMap = map<string, tuple<CaveType, Paths>>;
+using CaveMap = map<string, tuple<CaveType, vector<string>>>;
 
 static inline string_view toString(CaveType c)
 {
@@ -54,36 +52,49 @@ static void print(const CaveMap& caveMap)
 {
     for (const auto& [key, val] : caveMap)
     {
-        const auto& [type, paths]  = val;
+        const auto& [type, adjacent]  = val;
 
         cout << key << ": " << toString(type) << " |";
 
-        for (const auto& path : paths)
-            cout << path << "|";
+        for (const auto& cave : adjacent)
+            cout << cave << "|";
 
         cout << "\n";
     }
 }
 
-static void traverse(const string& current, CaveMap& caveMap, Trail& trail, unsigned& pathCount)
+static void traverse(const string& cave, CaveMap& caveMap, vector<string>& path, vector<vector<string>>& trails, bool& twice)
 {
-    if (current == "end")
+    if (cave == "end")
     {
-        pathCount += 1;
+        path.emplace_back(cave);
+        trails.emplace_back(path);
+        path.pop_back();
         return;
     }
 
-    const auto& [type, next] = caveMap[current];
+    const auto& [type, adjacent] = caveMap[cave];
 
-    if (type == CaveType::small && find(begin(trail), end(trail), current) != end(trail))
-        return;
+    bool twiceSet = false;
 
-    trail.emplace_back(current);
+    if (type == CaveType::small && find(begin(path), end(path), cave) != end(path))
+    {
+        if (twice || cave == "start")
+            return;
 
-    for (const auto& cave : next)
-        traverse(cave, caveMap, trail, pathCount);
+        twice = true;
+        twiceSet = true;
+    }
+
+    path.emplace_back(cave);
+
+    for (const auto& c : adjacent)
+        traverse(c, caveMap, path, trails, twice);
     
-    trail.pop_back();
+    path.pop_back();
+
+    if (twiceSet)
+        twice = false;
 }
 
 }
@@ -111,11 +122,21 @@ int main()
 
     print(caveMap);
 
-    unsigned pathCount = 0;
-    Trail trail;
-    traverse("start", caveMap, trail, pathCount);
+    bool twice = false;
+    vector<string> path;
+    vector<vector<string>> trails;
+    traverse("start", caveMap, path, trails, twice);
 
-    cout << pathCount << "\n";
+    for (const auto& trail : trails)
+    {
+        cout << trail.front();
+        for (auto caveIt = next(begin(trail)); caveIt != end(trail); ++caveIt)
+            cout << "," << *caveIt;
+
+        cout << "\n";
+    }
+
+    cout << trails.size() << "\n";
 
     return 0;
 }
