@@ -1,8 +1,8 @@
 #include <array>
 #include <algorithm>
 #include <iostream>
+#include <iomanip>
 #include <fstream>
-#include <ranges>
 #include <set>
 #include <string>
 #include <sstream>
@@ -43,8 +43,8 @@ int main()
     if (!inputFile.is_open())
         return -1;
 
-    using Fold = tuple<unsigned, bool>; // val, isY
-    using Coord = tuple<unsigned, unsigned>; // y, x
+    using Fold = tuple<unsigned, bool>; // val, d
+    using Coord = tuple<unsigned, unsigned>; // y, x -> to make set sort work the way we want
     using CoordSet = set<Coord>;
 
     CoordSet coords;
@@ -80,7 +80,7 @@ int main()
             array<unsigned, 2> pos = { 0u, 0u };
         } ps;
 
-        auto getMinMax = [&ps](const auto& coords)
+        auto minmax = [&ps](const auto& coords)
         {
             auto& cmaxx = ps.bounds[0];
             auto& cmaxy = ps.bounds[1];
@@ -99,11 +99,11 @@ int main()
                 cminy = min(cminy, cy);
             }
 
-            cout << "min = (" << cminx << "," << cminy << ")\n"
-                 << "max = (" << cmaxx << "," << cmaxy << ")\n";
+            cout << "min = (" << cminx << ',' << cminy << ")\n"
+                 << "max = (" << cmaxx << ',' << cmaxy << ")\n";
         };
 
-        auto printNextCoord = [&ps](const auto& c)
+        auto printCoord = [&ps](const auto& c)
         {
             const auto& cmaxx = ps.bounds[0];
             auto& x = ps.pos[0];
@@ -112,26 +112,20 @@ int main()
 
             while (y < cy)
             {
-                for (; x <= cmaxx; x++)
-                    cout << '.';
-
+                cout << setfill('.') << setw(cmaxx - x + 2);
                 x = 0;
-                y += 1;
-
+                y++;
                 cout << '\n';
             }
 
-            for (; x < cx; x++)
-                cout << '.';
-
-            cout << '#';
+            cout << setfill('.') << setw(cx - x + 1) << '#';
+            x = cx;
 
             if (x++ == cmaxx)
             {
-                x = 0;
-                y += 1;
-
                 cout << '\n';
+                x = 0;
+                y++;
             }
         };
 
@@ -144,41 +138,48 @@ int main()
 
             while (y++ <= cmaxy)
             {
-                while (x++ < cmaxx)
-                    cout << '.';
-
+                cout << setfill('.') << setw(cmaxx - x + 2);
                 x = 0;
-                
-                cout << ".\n";
+                cout << '\n';
             }
 
             cout << '\n';
         };
 
-        getMinMax(coords);
-        ranges::for_each(coords, printNextCoord);
+        minmax(coords);
+        for_each(begin(coords), end(coords), printCoord);
         printRest();
     };
 
-    auto fold = [](const Fold& f, const CoordSet& c)
+    auto fold = [](const Fold& f, CoordSet& coords)
     {
         auto project = [&f](const Coord& c)
         {
             const auto& [val, d] = f;
             const auto& [cy, cx] = c;
 
-            return d ?
-                (cy > val ? Coord{ val - (cy - val), cx } : Coord{ cy, cx }) :
-                (cx > val ? Coord{ cy, val - (cx - val) } : Coord{ cy, cx });
+            return d ? Coord{ val - (cy - val), cx } : Coord{ cy, val - (cx - val) };
         };
 
-        CoordSet result;
-        ranges::transform(c, inserter(result, end(result)), project);
+        const auto& [val, d] = f;
 
-        return result;
+        for (auto it = begin(coords); it != end(coords);)
+        {
+            const auto& [cy, cx] = *it;
+            unsigned v = d ? cy : cx;
+
+            if (v <= val)
+            {
+                ++it;
+                continue;
+            }
+
+            coords.insert(project(*it)); // always projects to a lower slot -> no wasted loops
+            it = coords.erase(it);
+        }
     };
 
-    cout << "size: " << coords.size() << "\n";
+    cout << "size: " << coords.size() << '\n';
 
     //print(coords);
     
@@ -186,10 +187,10 @@ int main()
     {
         const auto& [val, d] = f;
 
-        cout << "fold: " << (d ? 'y' : 'x') << "," << val << "\n";
-        cout << "size: " << coords.size() << "\n";
+        cout << "fold: " << (d ? 'y' : 'x') << ',' << val << '\n';
+        cout << "size: " << coords.size() << '\n';
 
-        coords = fold(f, coords);
+        fold(f, coords);
 
         //print(coords);
     }
