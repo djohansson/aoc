@@ -1,11 +1,10 @@
+#include <array>
 #include <algorithm>
-#include <iomanip>
 #include <iostream>
 #include <fstream>
 #include <ranges>
 #include <set>
 #include <string>
-#include <string_view>
 #include <sstream>
 #include <vector>
 #include <tuple>
@@ -14,24 +13,6 @@ namespace aoc
 {
 
 using namespace std;
-using Coord = tuple<unsigned, unsigned>;
-enum class FoldDirection { y, x };
-using Fold = tuple<FoldDirection, unsigned>;
-
-static inline string_view toString(FoldDirection d)
-{
-    switch (d)
-    {
-    case FoldDirection::y:
-        return "y";
-    case FoldDirection::x:
-        return "x";
-    default:
-        break;
-    }
-
-    return "";
-}
 
 vector<string>& split(const string& s, char delim, vector<string>& elems)
 {
@@ -52,7 +33,6 @@ vector<string> split(const string& s, char delim)
     return elems;
 }
 
-
 }
 
 int main()
@@ -63,17 +43,10 @@ int main()
     if (!inputFile.is_open())
         return -1;
 
-    struct CoordCompare
-    {
-        bool operator()(const Coord& a, const Coord& b) const
-        {
-            const auto& [ax, ay] = a;
-            const auto& [bx, by] = b;
-            return ay == by ? ax < bx : ay < by;
-        }
-    };
+    using Fold = tuple<unsigned, bool>; // val, isY
+    using Coord = tuple<unsigned, unsigned>; // y, x
+    using CoordSet = set<Coord>;
 
-    using CoordSet = set<Coord, CoordCompare>;
     CoordSet coords;
     vector<Fold> folds;
 
@@ -84,12 +57,12 @@ int main()
         if (readFolds)
         {
             auto s = split(split(line, ' ').back(), '=');
-            folds.emplace_back(s.front() == "y" ? FoldDirection::y : FoldDirection::x, stoul(s.back()));
+            folds.emplace_back(stoul(s.back()), s.front() == "y");
         }
         else
         {
             auto s = split(line, ',');
-            coords.emplace(stoul(s.front()), stoul(s.back()));
+            coords.emplace(stoul(s.back()), stoul(s.front()));
         }
 
         if (inputFile.peek() == '\n')
@@ -99,113 +72,104 @@ int main()
         }
     }
 
-    unsigned cmaxx = 0, cmaxy = 0, cminx = ~0u, cminy = ~0u;
-    unsigned x = 0, y = 0;
-
-    auto getMinMax = [&cmaxx, &cmaxy, &cminx, &cminy](const auto& coords)
+    auto print = [](const auto& coords)
     {
-        cmaxx = 0; cmaxy = 0; cminx = ~0u; cminy = ~0u;
-
-        for (const auto& c : coords)
+        struct PrintState
         {
-            const auto& [cx, cy] = c;
-            cmaxx = max(cmaxx, cx);
-            cmaxy = max(cmaxy, cy);
-            cminx = min(cminx, cx);
-            cminy = min(cminy, cy);
-        }
+            array<unsigned, 4> bounds = { 0u, 0u, ~0u, ~0u };
+            array<unsigned, 2> pos = { 0u, 0u };
+        } ps;
 
-        cout << "min = (" << cminx << "," << cminy << ")\n"
-             << "max = (" << cmaxx << "," << cmaxy << ")\n";
-    };
-    
-    auto print = [&cmaxx, &x, &y](const auto& c)
-    {
-        const auto& [cx, cy] = c;
-        while (y <= cy)
+        auto getMinMax = [&ps](const auto& coords)
         {
-            if (y == cy)
+            auto& cmaxx = ps.bounds[0];
+            auto& cmaxy = ps.bounds[1];
+            auto& cminx = ps.bounds[2];
+            auto& cminy = ps.bounds[3];
+
+            cmaxx = 0; cmaxy = 0; cminx = ~0u; cminy = ~0u;
+
+            for (const auto& c : coords)
             {
-                for (; x < cx; x++)
-                    cout << '.';
+                const auto& [cy, cx] = c;
 
-                if (x == cx)
-                {
-                    cout << '#';
-                    if (x >= cmaxx)
-                    {
-                        x = 0;
-                        y += 1;
-                        cout << '\n';
-                    }
-                    else
-                    {
-                        x++;
-                    }
-                    return;
-                }
+                cmaxx = max(cmaxx, cx);
+                cmaxy = max(cmaxy, cy);
+                cminx = min(cminx, cx);
+                cminy = min(cminy, cy);
             }
-            else
+
+            cout << "min = (" << cminx << "," << cminy << ")\n"
+                 << "max = (" << cmaxx << "," << cmaxy << ")\n";
+        };
+
+        auto printNextCoord = [&ps](const auto& c)
+        {
+            const auto& cmaxx = ps.bounds[0];
+            auto& x = ps.pos[0];
+            auto& y = ps.pos[1];
+            const auto& [cy, cx] = c;
+
+            while (y < cy)
             {
                 for (; x <= cmaxx; x++)
                     cout << '.';
 
-                if (x >= cmaxx)
-                {
-                    x = 0;
-                    y += 1;
-                    cout << '\n';
-                }
-            }
-        }
-    };
+                x = 0;
+                y += 1;
 
-    auto printRest = [&cmaxx, &cmaxy, &x, &y]
-    {
-        while (y <= cmaxy)
-            while (x <= cmaxx)
-            {
+                cout << '\n';
+            }
+
+            for (; x < cx; x++)
                 cout << '.';
 
-                if (x == cmaxx)
-                {
-                    x = 0;
-                    y += 1;
-                    cout << '\n';
-                    break;
-                }
-                else
-                {
-                    x++;
-                }
+            cout << '#';
+
+            if (x++ == cmaxx)
+            {
+                x = 0;
+                y += 1;
+
+                cout << '\n';
+            }
+        };
+
+        auto printRest = [&ps]
+        {
+            const auto& cmaxx = ps.bounds[0];
+            const auto& cmaxy = ps.bounds[1];
+            auto& x = ps.pos[0];
+            auto& y = ps.pos[1];
+
+            while (y++ <= cmaxy)
+            {
+                while (x++ < cmaxx)
+                    cout << '.';
+
+                x = 0;
+                
+                cout << ".\n";
             }
 
-        x = 0;
-        y = 0;
+            cout << '\n';
+        };
 
-        cout << '\n';
+        getMinMax(coords);
+        ranges::for_each(coords, printNextCoord);
+        printRest();
     };
 
     auto fold = [](const Fold& f, const CoordSet& c)
     {
         auto project = [&f](const Coord& c)
         {
-            const auto& [d, val] = f;
-            const auto& [cx, cy] = c;
+            const auto& [val, d] = f;
+            const auto& [cy, cx] = c;
 
-            switch (d)
-            {
-            case FoldDirection::y:
-                return cy > val ? Coord{ cx, val - (cy - val) } : Coord{ cx, cy };
-                break;
-            case FoldDirection::x:
-                return cx > val ? Coord{ val - (cx - val), cy } : Coord{ cx, cy };
-                break;
-            default:
-                break;
-            }
-
-            return Coord{ cx, cy };
+            return d ?
+                (cy > val ? Coord{ val - (cy - val), cx } : Coord{ cy, cx }) :
+                (cx > val ? Coord{ cy, val - (cx - val) } : Coord{ cy, cx });
         };
 
         CoordSet result;
@@ -215,18 +179,22 @@ int main()
     };
 
     cout << "size: " << coords.size() << "\n";
+
+    //print(coords);
     
     for (const auto& f : folds)
     {
-        cout << "fold: " << toString(get<0>(f)) << "," << get<1>(f) << "\n";
+        const auto& [val, d] = f;
+
+        cout << "fold: " << (d ? 'y' : 'x') << "," << val << "\n";
         cout << "size: " << coords.size() << "\n";
 
         coords = fold(f, coords);
+
+        //print(coords);
     }
     
-    getMinMax(coords);
-    ranges::for_each(coords, print);
-    printRest();   
+    print(coords);  
 
     return 0;
 }
