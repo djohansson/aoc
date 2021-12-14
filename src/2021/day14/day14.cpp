@@ -2,7 +2,6 @@
 #include <algorithm>
 #include <cstdint>
 #include <iostream>
-#include <iomanip>
 #include <fstream>
 #include <numeric>
 #include <map>
@@ -34,17 +33,6 @@ vector<string> split(const string& s, char delim)
     split(s, delim, elems);
     return elems;
 }
-
-template<typename MapT>
-struct CompareValue
-{
-    using value_type = typename MapT::value_type;
-
-    bool operator()(const value_type& left, const value_type& right) const
-    {
-        return left.second < right.second;
-    }
-};
 
 }
 
@@ -80,25 +68,27 @@ int main()
         }
     }
 
-    for_each(begin(rules), end(rules), [](const auto& rule) { cout << get<0>(rule) << " -> " << get<1>(rule) << '\n'; });
+    for (const auto& [p, c] : rules)
+        cout << p << " -> " << c << '\n';
 
-    cout << "\nrules.size(): " << rules.size() << "\n\n";
-    cout << "polymer: " << polymer << "\n\n";
+    cout << "rules.size(): " << rules.size() << "\n";
+    cout << "polymer: " << polymer << "\n";
 
     map<char, uint64_t> h;
     map<string, uint64_t> h2;
 
-    for_each(begin(polymer), end(polymer) - 1, [&h, &h2, nextIt = begin(polymer)](auto c) mutable
-    {
+    for (auto c : polymer)
         h[c]++;
+
+    for_each(begin(polymer), end(polymer) - 1, [&h2, nextIt = begin(polymer)](auto c) mutable
+    {
         h2[string{c} + *(++nextIt)]++;
     });
-    h[*prev(end(polymer))]++;
     
     cout << "h.size(): " << h.size() << "\n";
     cout << "h2.size(): " << h2.size() << "\n\n";
 
-    for (unsigned step = 1; step <= 40; ++step) // part1: 10
+    for (auto step = 1; step <= 40; ++step) // part1: step <= 10
     {
         auto hc = h;
         auto h2c = h2;
@@ -106,21 +96,16 @@ int main()
         for_each(begin(h2), end(h2), [&hc, &h2c, &rules](const auto& bucket)
         {
             const auto& [key, val] = bucket;
+            auto c = rules[key];
 
-            if (auto ruleIt = rules.find(key); ruleIt != rules.end())
-            {
-                const auto& [ruleKey, c] = *ruleIt;
+            h2c[key.substr(0, 1) + string{c}] += val;
+            h2c[string{c} + key.substr(1, 1)] += val;
+            h2c[key] -= val;
 
-                h2c[key] -= val;
+            if (h2c[key] == 0)
+                h2c.erase(key);
 
-                if (h2c[key] == 0)
-                    h2c.erase(key);
-
-                h2c[key.substr(0, 1) + c] += val;
-                h2c[string{ c } + key.substr(1, 1)] += val;
-
-                hc[c] += val;
-            }
+            hc[c] += val;
         });
         
         swap(h, hc);
@@ -131,9 +116,12 @@ int main()
         cout << "h2.size(): " << h2.size() << "\n\n";
     }
 
-    auto [minBucket, maxBucket] = minmax_element(h.begin(), h.end(), CompareValue<decltype(h)>());
+    auto [minBucket, maxBucket] = minmax_element(begin(h), end(h), [](const auto& lhs, const auto& rhs)
+    {
+        return lhs.second < rhs.second;
+    });
 
-    cout << "\nresult: " << maxBucket->second - minBucket->second <<
+    cout << "result: " << maxBucket->second - minBucket->second <<
         " (" << maxBucket->second << " - " << minBucket->second << ")\n";
     
     return 0;
