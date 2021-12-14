@@ -58,7 +58,6 @@ int main()
 
     string polymer;
     map<string, char> rules;
-    map<char, uint64_t> h;
 
     string line;
     bool readTemplate = true;
@@ -84,18 +83,19 @@ int main()
     for_each(begin(rules), end(rules), [](const auto& rule) { cout << get<0>(rule) << " -> " << get<1>(rule) << '\n'; });
 
     cout << "\nrules.size(): " << rules.size() << "\n\n";
-
     cout << "polymer: " << polymer << "\n\n";
 
+    map<char, uint64_t> h;
     map<string, uint64_t> h2;
+
     for_each(begin(polymer), end(polymer) - 1, [&h, &h2, nextIt = begin(polymer)](auto c) mutable
     {
-        nextIt = next(nextIt);
         h[c]++;
-        h2[string{c} + *nextIt]++;
+        h2[string{c} + *(++nextIt)]++;
     });
     h[*prev(end(polymer))]++;
     
+    cout << "h.size(): " << h.size() << "\n";
     cout << "h2.size(): " << h2.size() << "\n\n";
 
     for (unsigned step = 1; step <= 40; ++step) // part1: 10
@@ -103,7 +103,7 @@ int main()
         auto hc = h;
         auto h2c = h2;
 
-        for_each(begin(h2), end(h2), [&hc, &h2c, &rules](const auto& bucket) mutable
+        for_each(begin(h2), end(h2), [&hc, &h2c, &rules](const auto& bucket)
         {
             const auto& [key, val] = bucket;
 
@@ -126,13 +126,15 @@ int main()
         swap(h, hc);
         swap(h2, h2c);
 
+        cout << "step: " << step << "\n";
+        cout << "h.size(): " << h.size() << "\n";
         cout << "h2.size(): " << h2.size() << "\n\n";
     }
 
-    auto minBucket = *min_element(h.begin(), h.end(), CompareValue<decltype(h)>());
-    auto maxBucket = *max_element(h.begin(), h.end(), CompareValue<decltype(h)>());
+    auto [minBucket, maxBucket] = minmax_element(h.begin(), h.end(), CompareValue<decltype(h)>());
 
-    cout << "\nresult: " << maxBucket.second - minBucket.second << '(' << maxBucket.second << " - " << minBucket.second << ")\n";
+    cout << "\nresult: " << maxBucket->second - minBucket->second <<
+        " (" << maxBucket->second << " - " << minBucket->second << ")\n";
     
     return 0;
 }
