@@ -1,4 +1,5 @@
 #include <algorithm>
+#include <chrono>
 #include <cstdint>
 #include <iostream>
 #include <fstream>
@@ -11,6 +12,7 @@ namespace aoc
 {
 
 using namespace std;
+using namespace std::chrono;
 
 vector<string>& split(const string& s, char delim, vector<string>& elems)
 {
@@ -36,6 +38,8 @@ vector<string> split(const string& s, char delim)
 int main()
 {
     using namespace aoc;
+
+    auto parseStart = high_resolution_clock::now();
 
     ifstream inputFile("input.txt");
     if (!inputFile.is_open())
@@ -71,6 +75,12 @@ int main()
     cout << "rules.size(): " << rules.size() << "\n";
     cout << "polymer: " << polymer << "\n";
 
+    auto parseEnd = high_resolution_clock::now();
+
+    cout << "parse: " << duration_cast<milliseconds>(parseEnd - parseStart).count() << '\n';
+
+    auto runStart = high_resolution_clock::now();
+
     map<char, uint64_t> h;
     map<string, uint64_t> h2;
 
@@ -82,8 +92,8 @@ int main()
         h2[string{c} + *(++nextIt)]++;
     });
     
-    cout << "h.size(): " << h.size() << "\n";
-    cout << "h2.size(): " << h2.size() << "\n\n";
+    // cout << "h.size(): " << h.size() << "\n";
+    // cout << "h2.size(): " << h2.size() << "\n\n";
 
     for (auto step = 1; step <= 40; ++step) // part1: step <= 10
     {
@@ -109,8 +119,8 @@ int main()
         swap(h2, h2c);
 
         cout << "step: " << step << "\n";
-        cout << "h.size(): " << h.size() << "\n";
-        cout << "h2.size(): " << h2.size() << "\n\n";
+        // cout << "h.size(): " << h.size() << "\n";
+        // cout << "h2.size(): " << h2.size() << "\n\n";
     }
 
     auto [minBucket, maxBucket] = minmax_element(begin(h), end(h), [](const auto& lhs, const auto& rhs)
@@ -120,6 +130,10 @@ int main()
 
     cout << "result: " << maxBucket->second - minBucket->second <<
         " (" << maxBucket->second << " - " << minBucket->second << ")\n";
+
+    auto runEnd = high_resolution_clock::now();
+
+    cout << "time: " << duration_cast<milliseconds>(runEnd - runStart).count() << " milliseconds\n";
     
     return 0;
 }
