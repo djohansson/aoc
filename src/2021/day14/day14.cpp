@@ -1,14 +1,11 @@
-#include <array>
 #include <algorithm>
 #include <cstdint>
 #include <iostream>
 #include <fstream>
-#include <numeric>
 #include <map>
 #include <string>
 #include <sstream>
 #include <vector>
-#include <tuple>
 
 namespace aoc
 {
