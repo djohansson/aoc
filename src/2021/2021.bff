@@ -12,3 +12,4 @@
 #include "day12/day12.bff"
 #include "day13/day13.bff"
 #include "day14/day14.bff"
+#include "day15/day15.bff"
