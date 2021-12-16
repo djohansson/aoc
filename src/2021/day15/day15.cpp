@@ -16,39 +16,11 @@ using namespace std::chrono;
 
 using Coord = tuple<uint16_t, uint16_t>;
 using Risks = vector<uint8_t>;
-using Cache = vector<uint8_t>;
 using CoordVec = vector<Coord>;
 using Path = tuple<CoordVec, uint32_t>; // coord, accumulated risk
 
-struct PathCompare
-{
-    bool operator()(const Path& a, const Path& b) const
-    {
-        return get<1>(a) > get<1>(b);
-    }
-};
-
-class SearchContext
-{
-    using PathQueue = priority_queue<Path, vector<Path>, PathCompare>;
-
-public:
-
-    SearchContext(Coord&& goal) : myGoal(exchange(goal, {})) {}
-
-    auto& frontier() { return myFrontier; }
-    const auto& frontier() const { return myFrontier; }
-
-    auto& goal() { return myGoal; }
-    const auto& goal() const { return myGoal; }
-    
-private:
-
-    Coord myGoal;
-    PathQueue myFrontier;
-};
-
-constexpr uint8_t cx_invalid = ~0ui8;
+constexpr uint8_t cx_cacheBit = 1u << 7u;
+constexpr uint8_t cx_invalid = cx_cacheBit - 1u;
 constexpr Coord cx_start = Coord{1, 1};
 
 static inline unsigned idx(const Coord& c, unsigned rowSize)
@@ -64,32 +36,50 @@ static inline unsigned sample(const Coord& c, unsigned rowSize, const T& data)
     return data[idx(c, rowSize)];
 };
 
-// static inline bool contains(const Coord& c, const CoordVec& vec)
+// static inline uint32_t d(const Coord& a, const Coord& b)
 // {
-//     return binary_search(begin(vec), end(vec), c);
+//     return abs(static_cast<int32_t>(get<0>(a)) - get<0>(b)) + abs(static_cast<int32_t>(get<1>(a)) - get<1>(b));
 // }
 
-// static inline bool contains(const Coord& c, const SearchContext& s)
-// {
-//     for (auto f = s.frontier(); !f.empty(); f.pop())
-//         if (contains(c, get<0>(f.top())))
-//             return true;
+struct PathCompare
+{
+    Coord& goal;
 
-//     return false;
-// }
+    bool operator()(const Path& a, const Path& b) const
+    {
+        const auto& [csa, ha] = a;
+        const auto& [csb, hb] = b;
+        //return (ha + d(csa.back(), goal)) > (hb + d(csb.back(), goal)); // astar will not give correct result on part2 :(
+        return ha > hb;
+    }
+};
+
+class SearchContext
+{
+    using PathQueue = priority_queue<Path, vector<Path>, PathCompare>;
+
+public:
+
+    SearchContext(Coord&& goal)
+     : myGoal(exchange(goal, {}))
+     , myFrontier(PathCompare{myGoal})
+    {}
+
+    auto& frontier() { return myFrontier; }
+    const auto& frontier() const { return myFrontier; }
+
+    auto& goal() { return myGoal; }
+    const auto& goal() const { return myGoal; }
+    
+private:
+
+    Coord myGoal;
+    PathQueue myFrontier;
+};
 
 template <typename T>
-static void traverse(unsigned rowSize, const T& data, SearchContext& s)
+static void traverse(unsigned rowSize, T& data, SearchContext& s)
 {
-    static Cache s_cache;
-    static bool s_cache_ready = false;
-    if (!s_cache_ready)
-    {
-        s_cache.resize(data.size());
-        s_cache[idx(cx_start, rowSize)] = cx_invalid;
-        s_cache_ready = true;
-    }
-
     array<Coord, 4> c;
     auto cp = cx_start;
 
@@ -112,21 +102,14 @@ static void traverse(unsigned rowSize, const T& data, SearchContext& s)
 
         for (auto& cn : c)
         {
-            if (auto r = sample(cn, rowSize, data);
-                r != cx_invalid &&
-                //cn != cx_start &&
-                s_cache[idx(cn, rowSize)] == 0 /*&& 
-                (s.frontier().empty() || !contains(cn, s))*/)
+            if (auto r = sample(cn, rowSize, data); r < cx_invalid)
             {
                 auto pc = s.frontier().empty() ? Path{} : s.frontier().top();
                 auto& [csc, hc] = pc;
                 hc += r;
                 csc.emplace_back(cn);
-                s_cache[idx(cn, rowSize)]++;
-                //sort(begin(csc), end(csc));
+                data[idx(cn, rowSize)] ^= cx_cacheBit;
                 ps[pSize++] = move(pc);
-
-                //cout << "\nadd cache:" << static_cast<unsigned>(s_cache[idx(cn, rowSize)]);
             }
         }
 
@@ -153,8 +136,7 @@ static void traverse(unsigned rowSize, const T& data, SearchContext& s)
     //    cout << '[' << dbgcx << ',' << dbgcy << ']';
 
     s.frontier().pop();
-    //cout << "\npop cache:" << static_cast<unsigned>(s_cache[idx(cp, rowSize)]);
-
+    
     __attribute__((musttail)) return traverse(rowSize, data, s);
 }
 
@@ -222,11 +204,8 @@ int main()
                     srcIt += 1;
                     dstIt += 1;
 
-                    generate_n(dstIt, (rowSize - 2), [srcIt]() mutable
-                    {
-                        return *(srcIt++) % 9 + 1;
-                    });
-                    
+                    generate_n(dstIt, (rowSize - 2), [srcIt]() mutable { return *(srcIt++) % 9 + 1; });
+
                     srcIt += (rowSize - 2);
                     srcIt += 1;
                     dstIt += (rowSize - 2);
@@ -256,6 +235,7 @@ int main()
 
     //cout << "\ntraverse:" << "[1,1]";
     SearchContext s(Coord{rowSize-2, colSize-2});
+    risks[idx(cx_start, rowSize)] ^= cx_cacheBit;
     traverse(rowSize, risks, s);
     
     // cout << "\npath:\n";
