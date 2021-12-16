@@ -1,5 +1,6 @@
 #include <algorithm>
 #include <array>
+#include <chrono>
 #include <iostream>
 #include <fstream>
 #include <string>
@@ -11,24 +12,27 @@ namespace aoc
 {
 
 using namespace std;
+using namespace std::chrono;
+
 using Coord = tuple<uint16_t, uint16_t>;
 using Risks = vector<uint8_t>;
 using Cache = vector<uint8_t>;
 using CoordVec = vector<Coord>;
 using Path = tuple<CoordVec, uint32_t>; // coord, accumulated risk
 
+struct PathCompare
+{
+    bool operator()(const Path& a, const Path& b) const
+    {
+        return get<1>(a) > get<1>(b);
+    }
+};
+
 class SearchContext
 {
-public:
-    struct PathCompare
-    {
-
-        bool operator()(const Path& a, const Path& b) const
-        {
-            return get<1>(a) > get<1>(b);
-        }
-    };
     using PathQueue = priority_queue<Path, vector<Path>, PathCompare>;
+
+public:
 
     SearchContext(Coord&& goal) : myGoal(exchange(goal, {})) {}
 
@@ -39,6 +43,7 @@ public:
     const auto& goal() const { return myGoal; }
     
 private:
+
     Coord myGoal;
     PathQueue myFrontier;
 };
@@ -59,19 +64,19 @@ static inline unsigned sample(const Coord& c, unsigned rowSize, const T& data)
     return data[idx(c, rowSize)];
 };
 
-static inline bool contains(const Coord& c, const CoordVec& vec)
-{
-    return binary_search(begin(vec), end(vec), c);
-}
+// static inline bool contains(const Coord& c, const CoordVec& vec)
+// {
+//     return binary_search(begin(vec), end(vec), c);
+// }
 
-static inline bool contains(const Coord& c, const SearchContext& s)
-{
-    for (auto f = s.frontier(); !f.empty(); f.pop())
-        if (contains(c, get<0>(f.top())))
-            return true;
+// static inline bool contains(const Coord& c, const SearchContext& s)
+// {
+//     for (auto f = s.frontier(); !f.empty(); f.pop())
+//         if (contains(c, get<0>(f.top())))
+//             return true;
 
-    return false;
-}
+//     return false;
+// }
 
 template <typename T>
 static void traverse(unsigned rowSize, const T& data, SearchContext& s)
@@ -141,14 +146,13 @@ static void traverse(unsigned rowSize, const T& data, SearchContext& s)
     //    cout << ";";
     //}
 
-    cout << "\nfrontier size:" << s.frontier().size();
+    //cout << "\nfrontier size:" << s.frontier().size();
     
     //cout << "\ntraverse:";
     //for (const auto& [dbgcy, dbgcx] : get<0>(frontier.top()))
     //    cout << '[' << dbgcx << ',' << dbgcy << ']';
 
     s.frontier().pop();
-    //s_cache[idx(cp, rowSize)]--;
     //cout << "\npop cache:" << static_cast<unsigned>(s_cache[idx(cp, rowSize)]);
 
     __attribute__((musttail)) return traverse(rowSize, data, s);
@@ -160,6 +164,8 @@ int main()
 {
     using namespace aoc;
 
+    auto parseStart = high_resolution_clock::now();
+
     ifstream inputFile("input.txt");
     if (!inputFile.is_open())
         return -1;
@@ -168,12 +174,14 @@ int main()
     unsigned colSize = 0;
     unsigned rowSize = 0;
 
+    constexpr unsigned cx_tileCount = 5; // part1: 1
+
     string line;
     while (getline(inputFile, line, '\n'))
     {
         auto sx = static_cast<unsigned>(line.size());
 
-        rowSize = max((sx * 5) + 2, rowSize);
+        rowSize = max((sx * cx_tileCount) + 2, rowSize);
         risks.resize(risks.size() + rowSize);
         
         if (colSize++ == 0)
@@ -199,13 +207,13 @@ int main()
         if (inputFile.peek() == char_traits<char>::eof())
         {
             auto sy = colSize;
-            colSize = (sy * 5) + 2;
+            colSize = (sy * cx_tileCount) + 2;
             risks.resize(colSize * rowSize);
 
             auto srcIt = begin(risks) + rowSize;
             auto dstIt = begin(risks) + rowSize + (rowSize * sy);
 
-            for (unsigned i = 1; i < 5; i++)
+            for (unsigned i = 1; i < cx_tileCount; i++)
             {
                 for (unsigned y = 0; y < sy; y++)
                 {
@@ -230,6 +238,12 @@ int main()
         }
     }
 
+    auto parseEnd = high_resolution_clock::now();
+
+    cout << "parse: " << duration_cast<microseconds>(parseEnd - parseStart).count() << " microseconds";
+
+    auto runStart = high_resolution_clock::now();
+
     // for (unsigned y = 0; y < colSize; y++)
     // {
     //    for (unsigned x = 0; x < rowSize; x++)
@@ -249,6 +263,10 @@ int main()
     //     cout << '[' << get<1>(c) << ',' << get<0>(c)<< "](" << sample(c, rowSize, risks) << ")\n";
 
     cout << "\nresult: " << get<1>(s.frontier().top());
+
+    auto runEnd = high_resolution_clock::now();
+
+    cout << "\ntime: " << duration_cast<microseconds>(runEnd - runStart).count() << " microseconds";
 
     return 0;
 }
