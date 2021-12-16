@@ -12,27 +12,39 @@ namespace aoc
 
 using namespace std;
 using Coord = tuple<uint16_t, uint16_t>;
-using Risks = vector<uint16_t>;
+using Risks = vector<uint8_t>;
+using Cache = vector<uint8_t>;
 using CoordVec = vector<Coord>;
 using Path = tuple<CoordVec, uint32_t>; // coord, accumulated risk
 
-struct PathCompare
+class SearchContext
 {
-    bool operator()(const Path& a, const Path& b) const
+public:
+    struct PathCompare
     {
-        return get<1>(a) > get<1>(b);
-    }
+
+        bool operator()(const Path& a, const Path& b) const
+        {
+            return get<1>(a) > get<1>(b);
+        }
+    };
+    using PathQueue = priority_queue<Path, vector<Path>, PathCompare>;
+
+    SearchContext(Coord&& goal) : myGoal(exchange(goal, {})) {}
+
+    auto& frontier() { return myFrontier; }
+    const auto& frontier() const { return myFrontier; }
+
+    auto& goal() { return myGoal; }
+    const auto& goal() const { return myGoal; }
+    
+private:
+    Coord myGoal;
+    PathQueue myFrontier;
 };
 
-using PathQueue = priority_queue<Path, vector<Path>, PathCompare>;
-
-constexpr uint16_t cx_invalid = ~0ui16;
+constexpr uint8_t cx_invalid = ~0ui8;
 constexpr Coord cx_start = Coord{1, 1};
-
-static inline unsigned idx(unsigned x, unsigned y, unsigned rowSize)
-{
-    return y * rowSize + x;
-}
 
 static inline unsigned idx(const Coord& c, unsigned rowSize)
 {
@@ -47,20 +59,14 @@ static inline unsigned sample(const Coord& c, unsigned rowSize, const T& data)
     return data[idx(c, rowSize)];
 };
 
-template <typename T>
-static inline unsigned sample(unsigned x, unsigned y, unsigned rowSize, const T& data)
-{
-    return data[idx(x, y, rowSize)];
-};
-
 static inline bool contains(const Coord& c, const CoordVec& vec)
 {
     return binary_search(begin(vec), end(vec), c);
 }
 
-static inline bool contains(const Coord& c, const PathQueue& pq)
+static inline bool contains(const Coord& c, const SearchContext& s)
 {
-    for (auto f = pq; !f.empty(); f.pop())
+    for (auto f = s.frontier(); !f.empty(); f.pop())
         if (contains(c, get<0>(f.top())))
             return true;
 
@@ -68,15 +74,24 @@ static inline bool contains(const Coord& c, const PathQueue& pq)
 }
 
 template <typename T>
-static void traverse(const Coord& goal, unsigned rowSize, const T& data, PathQueue& frontier)
+static void traverse(unsigned rowSize, const T& data, SearchContext& s)
 {
+    static Cache s_cache;
+    static bool s_cache_ready = false;
+    if (!s_cache_ready)
+    {
+        s_cache.resize(data.size());
+        s_cache[idx(cx_start, rowSize)] = cx_invalid;
+        s_cache_ready = true;
+    }
+
     array<Coord, 4> c;
     auto cp = cx_start;
 
-    if (!frontier.empty())
-        cp = get<0>(frontier.top()).back();
+    if (!s.frontier().empty())
+        cp = get<0>(s.frontier().top()).back();
 
-    if (cp == goal)
+    if (cp == s.goal())
         return;
 
     const auto& [cpy, cpx] = cp;
@@ -92,24 +107,29 @@ static void traverse(const Coord& goal, unsigned rowSize, const T& data, PathQue
 
         for (auto& cn : c)
         {
-            auto inFrontier = frontier.empty() ? false : contains(cn, frontier);
-
-            if (auto r = sample(cn, rowSize, data); r != cx_invalid && cn != cx_start && !inFrontier)
+            if (auto r = sample(cn, rowSize, data);
+                r != cx_invalid &&
+                //cn != cx_start &&
+                s_cache[idx(cn, rowSize)] == 0 /*&& 
+                (s.frontier().empty() || !contains(cn, s))*/)
             {
-                auto pc = frontier.empty() ? Path{} : frontier.top();
+                auto pc = s.frontier().empty() ? Path{} : s.frontier().top();
                 auto& [csc, hc] = pc;
                 hc += r;
                 csc.emplace_back(cn);
-                sort(begin(csc), end(csc));
+                s_cache[idx(cn, rowSize)]++;
+                //sort(begin(csc), end(csc));
                 ps[pSize++] = move(pc);
+
+                //cout << "\nadd cache:" << static_cast<unsigned>(s_cache[idx(cn, rowSize)]);
             }
         }
 
         for (unsigned pIt = 0; pIt < pSize; ++pIt)
-            frontier.emplace(move(ps[pIt]));
+            s.frontier().emplace(move(ps[pIt]));
     }
 
-    if (frontier.empty())
+    if (s.frontier().empty())
         return;
 
     //cout << "\nfrontier:";
@@ -121,15 +141,17 @@ static void traverse(const Coord& goal, unsigned rowSize, const T& data, PathQue
     //    cout << ";";
     //}
 
-    cout << "\nfrontier size:" << frontier.size();
+    cout << "\nfrontier size:" << s.frontier().size();
     
     //cout << "\ntraverse:";
     //for (const auto& [dbgcy, dbgcx] : get<0>(frontier.top()))
     //    cout << '[' << dbgcx << ',' << dbgcy << ']';
 
-    frontier.pop();
+    s.frontier().pop();
+    //s_cache[idx(cp, rowSize)]--;
+    //cout << "\npop cache:" << static_cast<unsigned>(s_cache[idx(cp, rowSize)]);
 
-    __attribute__((musttail)) return traverse(goal, rowSize, data, frontier);
+    __attribute__((musttail)) return traverse(rowSize, data, s);
 }
 
 }
@@ -149,7 +171,9 @@ int main()
     string line;
     while (getline(inputFile, line, '\n'))
     {
-        rowSize = max(unsigned(line.size()) + 2, rowSize);
+        auto sx = static_cast<unsigned>(line.size());
+
+        rowSize = max((sx * 5) + 2, rowSize);
         risks.resize(risks.size() + rowSize);
         
         if (colSize++ == 0)
@@ -158,26 +182,73 @@ int main()
             risks.resize(risks.size() + rowSize);
         }
 
-        generate_n(end(risks) - rowSize + 1, line.size(), [cIt = line.begin()]() mutable { return static_cast<unsigned>(*cIt++) - 48u; });
+        generate_n(end(risks) - rowSize + 1, rowSize - 2, [n = 0, cBegin = line.begin(), cIt = line.begin(), cEnd = line.end()]() mutable
+        {
+            if (cIt == cEnd)
+            {
+                n++;
+                cIt = cBegin;
+            }
+
+            auto val = (static_cast<unsigned>(*cIt++) - 48u + n - 1) % 9 + 1;
+
+            return val;
+        });
         *(end(risks) - 1) = *(end(risks) - rowSize) = cx_invalid;
         
         if (inputFile.peek() == char_traits<char>::eof())
         {
-            colSize += 2;
-            risks.resize(risks.size() + rowSize);
+            auto sy = colSize;
+            colSize = (sy * 5) + 2;
+            risks.resize(colSize * rowSize);
+
+            auto srcIt = begin(risks) + rowSize;
+            auto dstIt = begin(risks) + rowSize + (rowSize * sy);
+
+            for (unsigned i = 1; i < 5; i++)
+            {
+                for (unsigned y = 0; y < sy; y++)
+                {
+                    *(dstIt) = *(dstIt + rowSize - 1) = cx_invalid;
+
+                    srcIt += 1;
+                    dstIt += 1;
+
+                    generate_n(dstIt, (rowSize - 2), [srcIt]() mutable
+                    {
+                        return *(srcIt++) % 9 + 1;
+                    });
+                    
+                    srcIt += (rowSize - 2);
+                    srcIt += 1;
+                    dstIt += (rowSize - 2);
+                    dstIt += 1;
+                }
+            }
+
             fill(end(risks) - rowSize, end(risks), cx_invalid);
         }
     }
 
-    //cout << "\ntraverse:" << "[1,1]";
-    PathQueue frontier;
-    traverse(Coord{rowSize-2, colSize-2}, rowSize, risks, frontier);
-    
-    cout << "\npath:\n";
-    for (const auto& [cy, cx] : get<0>(frontier.top()))
-        cout << '[' << cx << ',' << cy << "](" << sample(cx, cy, rowSize, risks) << ")\n";
+    // for (unsigned y = 0; y < colSize; y++)
+    // {
+    //    for (unsigned x = 0; x < rowSize; x++)
+    //    {
+    //        auto r = sample(Coord{ y, x }, rowSize, risks);
+    //        cout << (r != cx_invalid ? static_cast<char>(r + 48) : '#');
+    //    }
+    //    cout << '\n';
+    // }
 
-    cout << "\nresult: " << get<1>(frontier.top());
+    //cout << "\ntraverse:" << "[1,1]";
+    SearchContext s(Coord{rowSize-2, colSize-2});
+    traverse(rowSize, risks, s);
+    
+    // cout << "\npath:\n";
+    // for (const auto& c : get<0>(s.frontier().top()))
+    //     cout << '[' << get<1>(c) << ',' << get<0>(c)<< "](" << sample(c, rowSize, risks) << ")\n";
+
+    cout << "\nresult: " << get<1>(s.frontier().top());
 
     return 0;
 }
