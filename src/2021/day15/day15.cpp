@@ -16,8 +16,7 @@ using namespace std::chrono;
 
 using Coord = tuple<uint16_t, uint16_t>;
 using Risks = vector<uint8_t>;
-using CoordVec = vector<Coord>;
-using Path = tuple<CoordVec, uint32_t>; // coord, accumulated risk
+using Path = tuple<vector<Coord>, uint32_t>; // coord, accumulated risk
 
 constexpr uint8_t cx_cacheBit = 1u << 7u;
 constexpr uint8_t cx_invalid = cx_cacheBit - 1u;
@@ -102,7 +101,7 @@ static void traverse(unsigned rowSize, T& data, SearchContext& s)
 
         for (auto& cn : c)
         {
-            if (auto r = sample(cn, rowSize, data); r < cx_invalid)
+            if (auto r = sample(cn, rowSize, data); r < cx_invalid) // not invalid or in cache
             {
                 auto pc = s.frontier().empty() ? Path{} : s.frontier().top();
                 auto& [csc, hc] = pc;
