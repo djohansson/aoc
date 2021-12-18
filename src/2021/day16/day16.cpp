@@ -1,8 +1,8 @@
-#include <algorithm>
 #include <cassert>
 #include <cstdint>
 #include <format>
 #include <fstream>
+#include <functional>
 #include <iostream>
 #include <numeric>
 #include <string>
@@ -13,7 +13,7 @@ namespace aoc
 
 using namespace std;
 
-static unsigned traverse(const vector<bool>& b, vector<bool>::const_iterator& bIt)
+static uint64_t traverse(const vector<bool>& b, vector<bool>::const_iterator& bIt)
 {
     cout << '\n';
 
@@ -29,8 +29,8 @@ static unsigned traverse(const vector<bool>& b, vector<bool>::const_iterator& bI
         version |= *bIt << i;
         cout << *bIt;
     }
-
-    cout << "\nversion: " << static_cast<unsigned>(version) << '\n';
+    (void)version;
+    //cout << "\nversion: " << static_cast<unsigned>(version) << '\n';
 
     constexpr unsigned cx_typeIdSize = 3;
     uint8_t typeId = 0;
@@ -41,34 +41,70 @@ static unsigned traverse(const vector<bool>& b, vector<bool>::const_iterator& bI
         cout << *bIt;
     }
 
-    //cout << "typeId: " << static_cast<unsigned>(typeId);
+    function<uint64_t(uint64_t, uint64_t)> op;
+    uint64_t init = 0;
 
-    cout << '|';
-
-    if (typeId == 4)
+    switch (typeId)
+    {
+    case 0: // sum
+        op = plus<>();
+        cout << "|(sum)";
+        break;
+    case 1: // product
+        op = multiplies<>();
+        cout << "|(product)";
+        init = 1;
+        break;
+    case 2: // minimum
+        op = [](uint64_t a, uint64_t b) { return min(a, b); };
+        init = ~0ull;
+        cout << "|(minimum)";
+        break;
+    case 3: // maximum
+        op = [](uint64_t a, uint64_t b) { return max(a, b); };
+        cout << "|(maximum)";
+        break;
+    case 4:
     {
         constexpr unsigned cx_literalSize = 5;
         bool isLast = false;
+        uint64_t literal = 0;
+        unsigned literalSize = 0; 
         do
         {
-            cout << *bIt;
+            literalSize += cx_literalSize;
             isLast = !(*bIt++);
-            unsigned literal = 0;
-            nextBit += cx_literalSize;
-            for (unsigned i = cx_literalSize - 2; bIt != next(bBegin, nextBit); ++bIt, --i)
+            for (unsigned i = 0; i < 4; i++)
             {
-                literal |= *bIt << i;
-                cout << *bIt;
+                literal <<= 1;
+                literal |= *bIt++;
             }
-            cout << "(literal:" << literal << ')';
-            
-            if (!isLast)
-                cout << '|';
-
         } while (!isLast);
 
-        return version;
+        nextBit += literalSize;
+
+        cout << "|(literal:" << literal << ')';
+
+        return literal;
     }
+    case 5: // greater than
+        op = greater<>();
+        cout << "|(greater)";
+        break;
+    case 6: // less than
+        op = less<>();
+        cout << "|(less)";
+        break;
+    case 7: // equal to
+        op = equal_to<>();
+        cout << "|(equal)";
+        break;
+    default:
+        assert(false);
+        break;
+    }
+
+    cout << '|';
 
     constexpr unsigned cx_lengthTypeIdSize = 1;
     uint8_t lengthTypeId = 0;
@@ -80,6 +116,9 @@ static unsigned traverse(const vector<bool>& b, vector<bool>::const_iterator& bI
     }
 
     cout << '|';
+
+    vector<uint64_t> values;
+    values.reserve(2);
 
     if (lengthTypeId)
     {
@@ -96,7 +135,7 @@ static unsigned traverse(const vector<bool>& b, vector<bool>::const_iterator& bI
 
         while (bIt != bEnd && subPacketCount)
         {
-            version += traverse(b, bIt);
+            values.emplace_back(traverse(b, bIt));
             nextBit = distance(bBegin, bIt);
             subPacketCount--;
         }
@@ -106,7 +145,7 @@ static unsigned traverse(const vector<bool>& b, vector<bool>::const_iterator& bI
     else
     {
         constexpr unsigned cx_lengthBitsSize = 15;
-        unsigned lengthBits = 0;
+        uint16_t lengthBits = 0;
         nextBit += cx_lengthBitsSize;
         for (unsigned i = cx_lengthBitsSize - 1; bIt != next(bBegin, nextBit); ++bIt, --i)
         {
@@ -119,14 +158,23 @@ static unsigned traverse(const vector<bool>& b, vector<bool>::const_iterator& bI
         auto bStart = bIt;
         nextBit += lengthBits;
         while (distance(bStart, bIt) < lengthBits)
-            version += traverse(b, bIt);
+            values.emplace_back(traverse(b, bIt));
 
         assert(distance(bStart, bIt) == lengthBits);
         (void)bStart;
         (void)lengthBits;
     }
 
-    return version;
+    if (typeId > 4)
+    {
+        assert(values.size() == 2);
+
+        return op(values.front(), values.back());
+    }
+
+    //assert(values.size() >= 2);
+
+    return accumulate(begin(values), end(values), init, op);
 }
 
 }
@@ -141,7 +189,6 @@ int main()
     if (!inputFile.is_open())
         return -1;
 
-    unsigned total = 0;
     string line;
     while (getline(inputFile, line, '\n'))
     {
@@ -149,26 +196,20 @@ int main()
         for (auto c : line)
         {
             int value = (c >= 'A') ? (c - 'A' + 10) : (c - '0');
-            cout << format("{:X}", value);
+            //cout << '\n' << format("{:X}", value);
             for (int i = 3; i >= 0; --i)
                 packet.push_back(value >> i & 0b1);
         }
 
-        cout << '\n';
-
-        for (auto b : packet)
-            cout << b;
+        // cout << '\n';
+        // for (auto b : packet)
+        //     cout << b;
 
         auto packetIt = begin(packet);
-        auto versionSum = traverse(packet, packetIt);
-        total += versionSum;
-
-        cout << '\n';
-
-        cout << "version sum: " << versionSum << '\n';
+        auto value = traverse(packet, packetIt);
+        
+        cout << "\nvalue: " << value << '\n';
     }
-
-    cout << "total: " << total << '\n';
     
     return 0;
 }
