@@ -14,3 +14,5 @@
 #include "day14/day14.bff"
 #include "day15/day15.bff"
 #include "day16/day16.bff"
+#include "day17/day17.bff"
+#include "day18/day18.bff"
