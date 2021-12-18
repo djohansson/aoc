@@ -67,7 +67,7 @@
 		+ ' -fPIC'
 #endif //__LINUX__
 	.CompilerOptionsC = ' -std=c17 -nostdinc'
-	.CompilerOptionsCpp = ' -std=c++20 -nostdinc++'
+	.CompilerOptionsCpp = ' -std=c++2b -nostdinc++'
 #if !__WINDOWS__
 		+ ' -stdlib=libc++'
 		+ ' -I $LLVMPath$/include/c++/v1' // libc++ location
