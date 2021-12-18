@@ -22,8 +22,8 @@ using Single = std::variant<unsigned, shared_ptr<Pair>>;
 using Double = array<Single, 2>;
 struct Pair : public Double
 {
-    Pair() : Double() {}
-    Pair(Double&& d, const shared_ptr<Pair>& p) : Double(exchange(d, {})), parent(p) {}
+    //Pair() : Double() {}
+    //Pair(Double&& d, const shared_ptr<Pair>& p) : Double(exchange(d, {})), parent(p) {}
     weak_ptr<Pair> parent;
 };
 
@@ -63,16 +63,14 @@ int main()
         return -1;
 
     shared_ptr<Pair> root;
+    stack<bool> isSecond;
+    
     string line;
     while (getline(inputFile, line, '\n'))
     {
         cout << line << '\n';
 
-        root = make_shared<Pair>(Double{}, root);
-        
         auto current = root;
-
-        stack<bool> isSecond;
         isSecond.push(false);
         
         for (auto c : line)
@@ -81,9 +79,31 @@ int main()
             {
             case '[':
             {
-                auto& slot = static_cast<Double&>(*current)[isSecond.top()];
-                slot = make_shared<Pair>(Double{}, current);
-                current = get<shared_ptr<Pair>>(slot);
+                auto node = make_shared<Pair>();
+                if (current != root)
+                {
+                    node->parent = current;
+                    static_cast<Double&>(*current)[isSecond.top()] = node;
+                    isSecond.push(false);
+                    
+                }
+                else
+                {
+                    if (root)
+                    {
+                        auto oldRoot = root;
+                        root = make_shared<Pair>();
+                        oldRoot->parent = root;
+                        node->parent = root;
+                        static_cast<Double&>(*root)[0] = oldRoot;
+                        static_cast<Double&>(*root)[1] = node;
+                    }
+                    else
+                    {
+                        root = node;
+                    }
+                }
+                current = node;
                 isSecond.push(false);
                 break;
             }
@@ -120,6 +140,7 @@ int main()
         }
 
         printDouble(static_cast<Double&>(*root));
+
         cout << '\n';
     }
     
