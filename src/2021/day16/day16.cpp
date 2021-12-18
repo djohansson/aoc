@@ -196,14 +196,10 @@ int main()
         for (auto c : line)
         {
             int value = (c >= 'A') ? (c - 'A' + 10) : (c - '0');
-            //cout << '\n' << format("{:X}", value);
+            cout << format("{:X}", value);
             for (int i = 3; i >= 0; --i)
                 packet.push_back(value >> i & 0b1);
         }
-
-        // cout << '\n';
-        // for (auto b : packet)
-        //     cout << b;
 
         auto packetIt = begin(packet);
         auto value = traverse(packet, packetIt);
