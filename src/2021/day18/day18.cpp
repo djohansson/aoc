@@ -1,9 +1,9 @@
 #include <array>
 #include <cassert>
-#include <cstdint>
 #include <fstream>
 #include <iostream>
 #include <memory>
+#include <optional>
 #include <stack>
 #include <string>
 #include <tuple>
@@ -19,7 +19,8 @@ template<class... Ts> struct overloaded : Ts... { using Ts::operator()...; };
 template<class... Ts> overloaded(Ts...) -> overloaded<Ts...>;
 
 struct Node;
-using Single = std::variant<unsigned, shared_ptr<Node>>;
+using Number = optional<unsigned>;
+using Single = std::variant<Number, shared_ptr<Node>>;
 using Double = array<Single, 2>;
 struct Node : public Double { weak_ptr<Node> parent; };
 
@@ -35,7 +36,7 @@ static inline void print(const Single& s)
 
     visit(overloaded
     {
-        [](auto arg) { cout << arg; },
+        [](auto v) { cout << v.value_or(-1); },
         [](const shared_ptr<Node>& n) { print(n); }
     }, s);
 }
@@ -65,8 +66,8 @@ static inline void explodeAddUp(Node& node, unsigned value, bool isLeft)
     if (value == 0)
         return;
 
-    if (holds_alternative<unsigned>(node[isLeft ? 1 : 0]))
-        get<unsigned>(node[isLeft ? 1 : 0]) += value;
+    if (holds_alternative<Number>(node[isLeft ? 1 : 0]))
+        get<Number>(node[isLeft ? 1 : 0]).value() += value;
 
     if (holds_alternative<shared_ptr<Node>>(node[isLeft ? 1 : 0]))
         explodeAddUp(*get<shared_ptr<Node>>(node[isLeft ? 1 : 0]), value, isLeft);
@@ -82,8 +83,8 @@ static inline void explodeAddDown(Node& node, unsigned value, bool isLeft)
     {
         if (&node == get<shared_ptr<Node>>((*parent)[isLeft ? 1 : 0]).get())
         {
-            if (holds_alternative<unsigned>((*parent)[isLeft ? 0 : 1]))
-                get<unsigned>((*parent)[isLeft ? 0 : 1]) += value;
+            if (holds_alternative<Number>((*parent)[isLeft ? 0 : 1]))
+                get<Number>((*parent)[isLeft ? 0 : 1]).value() += value;
             else
                 explodeAddUp(*get<shared_ptr<Node>>((*parent)[isLeft ? 0 : 1]), value, isLeft);
 
@@ -94,35 +95,35 @@ static inline void explodeAddDown(Node& node, unsigned value, bool isLeft)
     explodeAddDown(*parent, value, isLeft);
 }
 
-static inline tuple<unsigned, bool> explode(Single& s, unsigned depth);
+static inline tuple<Number, bool> explode(Single& s, unsigned depth);
 
-static inline tuple<unsigned, unsigned, bool> explode(const shared_ptr<Node>& d, unsigned depth)
+static inline tuple<Number, Number, bool> explode(const shared_ptr<Node>& d, unsigned depth)
 {
     auto [val0, hasExploded0] = explode((*d)[0], depth);
 
-    if (hasExploded0 && val0 && holds_alternative<unsigned>((*d)[0]) && holds_alternative<unsigned>((*d)[1]))
+    if (hasExploded0 && val0 && holds_alternative<Number>((*d)[0]) && holds_alternative<Number>((*d)[1]))
     {
         auto [val1, hasExploded1] = explode((*d)[1], depth);
         assert(hasExploded0 && hasExploded1);
-        explodeAddDown(*d, val0, true);
-        explodeAddDown(*d, val1, false);
+        explodeAddDown(*d, val0.value(), true);
+        explodeAddDown(*d, val1.value(), false);
         return {val0, val1, true};
     }
 
     if (!hasExploded0)
     {
         auto [val1, hasExploded1] = explode((*d)[1], depth);
-        return {0, val1, hasExploded1};
+        return {{}, val1, hasExploded1};
     }
 
-    return {0, 0, hasExploded0};
+    return {{}, {}, hasExploded0};
 }
 
-static inline tuple<unsigned, bool> explode(Single& s, unsigned depth)
+static inline tuple<Number, bool> explode(Single& s, unsigned depth)
 {
     assert(s.index() != variant_npos);
 
-    tuple<unsigned, bool> result;
+    tuple<Number, bool> result;
     
     visit(overloaded
     {
@@ -136,7 +137,7 @@ static inline tuple<unsigned, bool> explode(Single& s, unsigned depth)
             }
             else
             {
-                val = 0;
+                val.reset();
                 hasExploded = false;
             }
         },
@@ -144,7 +145,7 @@ static inline tuple<unsigned, bool> explode(Single& s, unsigned depth)
         {
             auto [val0, val1, boom] = explode(n, depth + 1);
             auto& [val, hasExploded] = result;
-            val = 0;
+            val.reset();
             hasExploded = boom;
             if (hasExploded && val0 && val1)
                 s = 0u;
@@ -181,8 +182,8 @@ static inline tuple<shared_ptr<Node>, bool> split(Single& s)
             {
                 hasSplit = true;
                 node = make_shared<Node>();
-                (*node)[0] = v / 2;
-                (*node)[1] = (v + 1) / 2;
+                (*node)[0] = Number(v.value() / 2);
+                (*node)[1] = Number((v.value() + 1) / 2);
                 s = node;
             }
         },
@@ -268,7 +269,7 @@ int main()
             case '9':
             {
                 cout << c;
-                (*current)[isSecond.top()] = static_cast<unsigned>(c - '0');
+                (*current)[isSecond.top()] = Number(static_cast<unsigned>(c - '0'));
                 break;
             }
             default:
@@ -287,7 +288,7 @@ int main()
         
         wasAdded = true;
 
-        tuple<unsigned, unsigned, bool> explodeResult;
+        tuple<Number, Number, bool> explodeResult;
         auto& [val0, val1, wasExploded] = explodeResult;
 
         tuple<shared_ptr<Node>, bool> splitResult;
