@@ -190,8 +190,11 @@ static inline tuple<shared_ptr<Node>, bool> split(Single& s)
         {
             result = split(n);
             auto& [node, hasSplit] = result;
-            if (hasSplit)
+            if (hasSplit && node)
+            {
                 node->parent = n;
+                node = nullptr;
+            }
         }
     }, s);
 
@@ -204,7 +207,7 @@ int main()
 {
     using namespace aoc;
 
-    ifstream inputFile("test9.txt");
+    ifstream inputFile("test10.txt");
     if (!inputFile.is_open())
         return -1;
 
@@ -284,39 +287,46 @@ int main()
         
         wasAdded = true;
 
+        tuple<unsigned, unsigned, bool> explodeResult;
+        auto& [val0, val1, wasExploded] = explodeResult;
+
+        tuple<shared_ptr<Node>, bool> splitResult;
+        auto& [node, wasSplit] = splitResult;
+
+        unsigned explodeOrSplitCount;
+        do
         {
-            tuple<unsigned, unsigned, bool> explodeResult;
-            auto& [val0, val1, wasExploded] = explodeResult;
+            explodeOrSplitCount = 0;
+
             do
             {
                 explodeResult = explode(root, 0);
 
                 if (wasExploded)
                 {
+                    explodeOrSplitCount++;
                     cout << "after explode:";
                     print(root);
                     cout << '\n';
                 }
 
             } while (wasExploded);
-        }
-
-        {
-            tuple<shared_ptr<Node>, bool> splitResult;
-            auto [node, wasSplit] = splitResult;
+            
             do
             {
                 splitResult = split(root);
 
                 if (wasSplit)
                 {
+                    explodeOrSplitCount++;
                     cout << "after split:";
                     print(root);
                     cout << '\n';
                 }
 
             } while (wasSplit);
-        }
+
+        } while (explodeOrSplitCount);
     }
     
     return 0;
