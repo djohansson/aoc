@@ -63,7 +63,6 @@ static inline void explodeAddUp(Node& node, unsigned value, bool isLeft)
 static inline void explodeAddDown(Node& node, unsigned value, bool isLeft)
 {
     auto parent = node.parent.lock();
-
     if (!parent || value == 0)
         return;
 
@@ -73,8 +72,8 @@ static inline void explodeAddDown(Node& node, unsigned value, bool isLeft)
         {
             if (holds_alternative<unsigned>((*parent)[isLeft ? 0 : 1]))
                 get<unsigned>((*parent)[isLeft ? 0 : 1]) += value;
-            //else
-            //    explodeAddUp(*get<shared_ptr<Node>>((*parent)[isLeft ? 0 : 1]), value, isLeft);
+            else
+                explodeAddUp(*get<shared_ptr<Node>>((*parent)[isLeft ? 0 : 1]), value, isLeft);
 
             return;
         }
@@ -87,41 +86,45 @@ static inline unsigned explode(Single& s, unsigned depth);
 
 static inline bool explode(Node& d, unsigned depth)
 {
-    bool hasExploded = false;
-    for (unsigned i = 0; i < 2; i++)
+    unsigned val = explode(d[0], depth);
+    if (holds_alternative<unsigned>(d[0]))
     {
-        unsigned val = explode(d[i], depth);
-        hasExploded |= (val > 0);
-        if (hasExploded /*&& holds_alternative<shared_ptr<Node>>(d)*/)
-            explodeAddDown(d, val, i == 0);
+        explodeAddDown(d, val, true);
+        val = explode(d[1], depth);
+        if (holds_alternative<unsigned>(d[1]))
+        {
+            explodeAddDown(d, val, false);
+            return val > 0;
+        }
     }
-    return hasExploded;
+
+    return false;
 }
 
 static inline unsigned explode(Single& s, unsigned depth)
 {
     assert(s.index() != variant_npos);
 
-    unsigned singleValue = 0;
-    bool doubleHasExploded = false;
-
+    unsigned val = 0;
+    
     visit(overloaded
     {
-        [&singleValue, depth](auto arg)
+        [&s, &val, depth](auto arg)
         {
             if (depth >= 4)
-                singleValue = arg;
+            {
+                s = 0u;
+                val = arg;
+            }
         },
-        [&doubleHasExploded, depth](shared_ptr<Node>& arg)
+        [&s, depth](const shared_ptr<Node>& arg)
         {
-            doubleHasExploded |= explode((*arg), depth + 1);
+            if (explode((*arg), depth + 1))
+                s = 0u;
         }
     }, s);
 
-    if (doubleHasExploded)
-        s = 0u;
-
-    return singleValue;
+    return val;
 }
 
 }
@@ -130,7 +133,7 @@ int main()
 {
     using namespace aoc;
 
-    ifstream inputFile("test5.txt");
+    ifstream inputFile("test7.txt");
     if (!inputFile.is_open())
         return -1;
 
