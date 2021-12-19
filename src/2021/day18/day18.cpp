@@ -156,8 +156,6 @@ int main()
                 {
                     node->parent = current;
                     (*current)[isSecond.top()] = node;
-                    isSecond.push(false);
-                    
                 }
                 else
                 {
