@@ -48,6 +48,17 @@ static inline void printDouble(const Double& d)
     cout << ']';
 }
 
+static inline shared_ptr<Node> add(const shared_ptr<Node>& a, const shared_ptr<Node>& b)
+{
+    auto node = make_shared<Node>();
+    a->parent = node;
+    b->parent = node;
+    (*node)[0] = a;
+    (*node)[1] = b;
+
+    return node;
+}
+
 static inline void explodeAddUp(Node& node, unsigned value, bool isLeft)
 {
     if (value == 0)
@@ -88,7 +99,7 @@ static inline tuple<unsigned, unsigned, bool> explode(Node& d, unsigned depth)
 {
     auto [val0, hasExploded0] = explode(d[0], depth);
 
-    if (depth >= 4 && holds_alternative<unsigned>(d[0]) && holds_alternative<unsigned>(d[0]))
+    if (depth >= 4 && holds_alternative<unsigned>(d[0]) && holds_alternative<unsigned>(d[1]))
     {
         auto [val1, hasExploded1] = explode(d[1], depth);
         assert(hasExploded0 && hasExploded1);
@@ -102,44 +113,6 @@ static inline tuple<unsigned, unsigned, bool> explode(Node& d, unsigned depth)
         auto [val1, hasExploded1] = explode(d[1], depth);
         return {0, val1, hasExploded1};
     }
-    
-    return {0, 0, false};
-
-    // auto [val0, hasExploded0] = explode(d[0], depth);
-    // if (hasExploded0)
-    // {
-    //     if (holds_alternative<unsigned>(d[0]))
-    //         explodeAddDown(d, val0, true);
-
-    //     if (holds_alternative<unsigned>(d[1]))
-    //     {
-    //         auto [val1, hasExploded1] = explode(d[1], depth);
-
-    //         assert(hasExploded1);
-
-    //         explodeAddDown(d, val1, false);
-
-    //         return {0, 0, false};
-    //     }
-
-    //     return {val0, 0, hasExploded0};
-        
-    // }
-    // else
-    // {
-    //     auto [val1, hasExploded1] = explode(d[1], depth);
-    //     if (hasExploded1)
-    //     {
-    //         if (holds_alternative<unsigned>(d[1]))
-    //         {
-    //             explodeAddDown(d, val1, false);
-
-    //             return {0, 0, false};
-    //         }
-
-    //         return {0, val1, hasExploded1};
-    //     }
-    // }
 
     return {0, 0, false};
 }
@@ -152,26 +125,28 @@ static inline tuple<unsigned, bool> explode(Single& s, unsigned depth)
     
     visit(overloaded
     {
-        [&s, &result, depth](auto arg)
+        [&result, depth](auto arg)
         {
             auto& [val, hasExploded] = result;
             if (depth >= 4)
             {
-                s = 0u;
                 val = arg;
                 hasExploded = true;
+            }
+            else
+            {
+                val = 0;
+                hasExploded = false;
             }
         },
         [&s, &result, depth](const shared_ptr<Node>& arg)
         {
-            auto [val0, val1, hasExploded] = explode((*arg), depth + 1);
+            auto [val0, val1, boom] = explode((*arg), depth + 1);
+            auto& [val, hasExploded] = result;
+            val = 0;
+            hasExploded = boom;
             if (hasExploded && val0 && val1)
-            {
-                auto& [val, rHasExploded] = result;
-                rHasExploded = true;
-                val = 0;
                 s = 0u;
-            }
         }
     }, s);
 
@@ -184,7 +159,7 @@ int main()
 {
     using namespace aoc;
 
-    ifstream inputFile("test4.txt");
+    ifstream inputFile("test3.txt");
     if (!inputFile.is_open())
         return -1;
 
@@ -194,10 +169,7 @@ int main()
     string line;
     while (getline(inputFile, line, '\n'))
     {
-        cout << line << '\n';
-
-        auto current = root;
-        isSecond.push(false);
+        shared_ptr<Node> current;
         
         for (auto c : line)
         {
@@ -205,27 +177,16 @@ int main()
             {
             case '[':
             {
+                cout << c;
                 auto node = make_shared<Node>();
-                if (current/* != root*/)
+                if (current)
                 {
                     node->parent = current;
                     (*current)[isSecond.top()] = node;
                 }
                 else
                 {
-                    if (root)
-                    {
-                        auto oldRoot = root;
-                        root = make_shared<Node>();
-                        oldRoot->parent = root;
-                        node->parent = root;
-                        (*root)[0] = oldRoot;
-                        (*root)[1] = node;
-                    }
-                    else
-                    {
-                        root = node;
-                    }
+                    root = root ? add(root, node) : node;
                 }
                 current = node;
                 isSecond.push(false);
@@ -233,12 +194,14 @@ int main()
             }
             case ',':
             {
+                cout << c;
                 assert(!isSecond.top());
                 isSecond.top() = true;
                 break;
             }
             case ']':
             {
+                cout << c;
                 current = current->parent.lock();
                 assert(isSecond.top());
                 isSecond.pop();
@@ -255,13 +218,16 @@ int main()
             case '8':
             case '9':
             {
+                cout << c;
                 (*current)[isSecond.top()] = static_cast<unsigned>(c - '0');
                 break;
             }
             default:
-                break;
+                assert(false);
             }
         }
+
+        cout << '\n';
 
         printDouble(*root);
         cout << '\n';
