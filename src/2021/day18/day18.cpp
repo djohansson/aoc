@@ -6,6 +6,7 @@
 #include <memory>
 #include <stack>
 #include <string>
+#include <tuple>
 #include <variant>
 #include <vector>
 
@@ -22,9 +23,9 @@ using Single = std::variant<unsigned, shared_ptr<Node>>;
 using Double = array<Single, 2>;
 struct Node : public Double { weak_ptr<Node> parent; };
 
-static inline void printDouble(const Double& d);
+static inline void print(const shared_ptr<Node>& d);
 
-static inline void printSingle(const Single& s)
+static inline void print(const Single& s)
 {
     if (s.index() == variant_npos)
     {
@@ -35,16 +36,16 @@ static inline void printSingle(const Single& s)
     visit(overloaded
     {
         [](auto arg) { cout << arg; },
-        [](const shared_ptr<Node>& arg) { printDouble(*arg); }
+        [](const shared_ptr<Node>& n) { print(n); }
     }, s);
 }
 
-static inline void printDouble(const Double& d)
+static inline void print(const shared_ptr<Node>& d)
 {
     cout << '[';
-    printSingle(d[0]);
+    print((*d)[0]);
     cout << ',';
-    printSingle(d[1]);
+    print((*d)[1]);
     cout << ']';
 }
 
@@ -95,26 +96,26 @@ static inline void explodeAddDown(Node& node, unsigned value, bool isLeft)
 
 static inline tuple<unsigned, bool> explode(Single& s, unsigned depth);
 
-static inline tuple<unsigned, unsigned, bool> explode(Node& d, unsigned depth)
+static inline tuple<unsigned, unsigned, bool> explode(const shared_ptr<Node>& d, unsigned depth)
 {
-    auto [val0, hasExploded0] = explode(d[0], depth);
+    auto [val0, hasExploded0] = explode((*d)[0], depth);
 
-    if (depth >= 4 && holds_alternative<unsigned>(d[0]) && holds_alternative<unsigned>(d[1]))
+    if (hasExploded0 && val0 && holds_alternative<unsigned>((*d)[0]) && holds_alternative<unsigned>((*d)[1]))
     {
-        auto [val1, hasExploded1] = explode(d[1], depth);
+        auto [val1, hasExploded1] = explode((*d)[1], depth);
         assert(hasExploded0 && hasExploded1);
-        explodeAddDown(d, val0, true);
-        explodeAddDown(d, val1, false);
+        explodeAddDown(*d, val0, true);
+        explodeAddDown(*d, val1, false);
         return {val0, val1, true};
     }
 
     if (!hasExploded0)
     {
-        auto [val1, hasExploded1] = explode(d[1], depth);
+        auto [val1, hasExploded1] = explode((*d)[1], depth);
         return {0, val1, hasExploded1};
     }
 
-    return {0, 0, false};
+    return {0, 0, hasExploded0};
 }
 
 static inline tuple<unsigned, bool> explode(Single& s, unsigned depth)
@@ -125,12 +126,12 @@ static inline tuple<unsigned, bool> explode(Single& s, unsigned depth)
     
     visit(overloaded
     {
-        [&result, depth](auto arg)
+        [&result, depth](auto v)
         {
             auto& [val, hasExploded] = result;
             if (depth >= 4)
             {
-                val = arg;
+                val = v;
                 hasExploded = true;
             }
             else
@@ -139,14 +140,58 @@ static inline tuple<unsigned, bool> explode(Single& s, unsigned depth)
                 hasExploded = false;
             }
         },
-        [&s, &result, depth](const shared_ptr<Node>& arg)
+        [&s, &result, depth](const shared_ptr<Node>& n)
         {
-            auto [val0, val1, boom] = explode((*arg), depth + 1);
+            auto [val0, val1, boom] = explode(n, depth + 1);
             auto& [val, hasExploded] = result;
             val = 0;
             hasExploded = boom;
             if (hasExploded && val0 && val1)
                 s = 0u;
+        }
+    }, s);
+
+    return result;
+}
+
+static inline tuple<shared_ptr<Node>, bool> split(Single& s);
+
+static inline tuple<shared_ptr<Node>, bool> split(const shared_ptr<Node>& d)
+{
+    auto [val0, hasSplit0] = split((*d)[0]);
+    
+    if (!hasSplit0)
+        return split((*d)[1]);
+
+    return {val0, hasSplit0};
+}
+
+static inline tuple<shared_ptr<Node>, bool> split(Single& s)
+{
+    assert(s.index() != variant_npos);
+
+    tuple<shared_ptr<Node>, bool> result;
+    
+    visit(overloaded
+    {
+        [&s, &result](auto v)
+        {
+            auto& [node, hasSplit] = result;
+            if (v > 9)
+            {
+                hasSplit = true;
+                node = make_shared<Node>();
+                (*node)[0] = v / 2;
+                (*node)[1] = (v + 1) / 2;
+                s = node;
+            }
+        },
+        [&result](const shared_ptr<Node>& n)
+        {
+            result = split(n);
+            auto& [node, hasSplit] = result;
+            if (hasSplit)
+                node->parent = n;
         }
     }, s);
 
@@ -159,12 +204,13 @@ int main()
 {
     using namespace aoc;
 
-    ifstream inputFile("test3.txt");
+    ifstream inputFile("test9.txt");
     if (!inputFile.is_open())
         return -1;
 
     shared_ptr<Node> root;
     stack<bool> isSecond;
+    bool wasAdded = false;
     
     string line;
     while (getline(inputFile, line, '\n'))
@@ -229,12 +275,48 @@ int main()
 
         cout << '\n';
 
-        printDouble(*root);
-        cout << '\n';
+        if (wasAdded)
+        {
+            cout << "after addition:";
+            print(root);
+            cout << '\n';
+        }
+        
+        wasAdded = true;
 
-        explode(*root, 0);
-        printDouble(*root);
-        cout << '\n';
+        {
+            tuple<unsigned, unsigned, bool> explodeResult;
+            auto& [val0, val1, wasExploded] = explodeResult;
+            do
+            {
+                explodeResult = explode(root, 0);
+
+                if (wasExploded)
+                {
+                    cout << "after explode:";
+                    print(root);
+                    cout << '\n';
+                }
+
+            } while (wasExploded);
+        }
+
+        {
+            tuple<shared_ptr<Node>, bool> splitResult;
+            auto [node, wasSplit] = splitResult;
+            do
+            {
+                splitResult = split(root);
+
+                if (wasSplit)
+                {
+                    cout << "after split:";
+                    print(root);
+                    cout << '\n';
+                }
+
+            } while (wasSplit);
+        }
     }
     
     return 0;
