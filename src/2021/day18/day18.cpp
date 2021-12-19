@@ -208,7 +208,7 @@ int main()
 {
     using namespace aoc;
 
-    ifstream inputFile("test10.txt");
+    ifstream inputFile("test11.txt");
     if (!inputFile.is_open())
         return -1;
 
@@ -227,7 +227,7 @@ int main()
             {
             case '[':
             {
-                cout << c;
+                //cout << c;
                 auto node = make_shared<Node>();
                 if (current)
                 {
@@ -244,14 +244,14 @@ int main()
             }
             case ',':
             {
-                cout << c;
+                //cout << c;
                 assert(!isSecond.top());
                 isSecond.top() = true;
                 break;
             }
             case ']':
             {
-                cout << c;
+                //cout << c;
                 current = current->parent.lock();
                 assert(isSecond.top());
                 isSecond.pop();
@@ -268,7 +268,7 @@ int main()
             case '8':
             case '9':
             {
-                cout << c;
+                //cout << c;
                 (*current)[isSecond.top()] = Number(static_cast<unsigned>(c - '0'));
                 break;
             }
@@ -277,15 +277,16 @@ int main()
             }
         }
 
-        cout << '\n';
+        //cout << '\n';
 
         if (wasAdded)
-        {
-            cout << "after addition:";
-            print(root);
-            cout << '\n';
-        }
-        
+            cout << "+ ";
+        else
+            cout << "  ";
+
+        print(root);
+        cout << '\n';
+
         wasAdded = true;
 
         tuple<Number, Number, bool> explodeResult;
@@ -294,40 +295,34 @@ int main()
         tuple<shared_ptr<Node>, bool> splitResult;
         auto& [node, wasSplit] = splitResult;
 
-        unsigned explodeOrSplitCount;
         do
         {
-            explodeOrSplitCount = 0;
+            explodeResult = explode(root, 0);
 
-            do
+            if (wasExploded)
             {
-                explodeResult = explode(root, 0);
+                cout << "E ";
+                print(root);
+                cout << '\n';
+            }
 
-                if (wasExploded)
-                {
-                    explodeOrSplitCount++;
-                    cout << "after explode:";
-                    print(root);
-                    cout << '\n';
-                }
+            splitResult = split(root);
 
-            } while (wasExploded);
-            
-            do
+            if (wasSplit)
             {
-                splitResult = split(root);
+                cout << "S ";
+                print(root);
+                cout << '\n';
+            }
 
-                if (wasSplit)
-                {
-                    explodeOrSplitCount++;
-                    cout << "after split:";
-                    print(root);
-                    cout << '\n';
-                }
+        } while (wasExploded || wasSplit);
 
-            } while (wasSplit);
-
-        } while (explodeOrSplitCount);
+        if (wasAdded)
+        {
+            cout << "= ";
+            print(root);
+            cout << '\n';
+        }
     }
     
     return 0;
