@@ -109,11 +109,11 @@ static inline tuple<Number, Number, bool> explode(const shared_ptr<Node>& d, uns
 {
     auto [val0, hasExploded0] = explode((*d)[0], depth);
 
-    if (hasExploded0 && val0 && holds_alternative<Number>((*d)[0]))
+    if (hasExploded0 && val0) // only true if (*d)[0] is a literal
     {
         auto [val1, hasExploded1] = explode((*d)[1], depth);
         
-        if (hasExploded1 && val1 && holds_alternative<Number>((*d)[1]))
+        if (hasExploded1 && val1) // only true if (*d)[1] is a literal
         {
             assert(hasExploded0 && hasExploded1);
             
@@ -123,16 +123,13 @@ static inline tuple<Number, Number, bool> explode(const shared_ptr<Node>& d, uns
             return {val0, val1, true};
         }
         
-        return {{}, {}, hasExploded0 || hasExploded1};
+        return {val0, val1, hasExploded0 || hasExploded1};
     }
 
-    if (!hasExploded0)
-    {
-        auto [val1, hasExploded1] = explode((*d)[1], depth);
-        return {{}, {}, hasExploded1};
-    }
+    if (hasExploded0) // early out if already exploded
+        return {val0, {}, hasExploded0};
 
-    return {{}, {}, hasExploded0};
+    return tuple_cat(make_tuple(0u), explode((*d)[1], depth));
 }
 
 static inline tuple<Number, bool> explode(Single& s, unsigned depth)
@@ -146,25 +143,16 @@ static inline tuple<Number, bool> explode(Single& s, unsigned depth)
         [&result, depth](auto v)
         {
             auto& [val, hasExploded] = result;
-            if (depth >= 4)
-            {
-                val = v;
-                hasExploded = true;
-            }
-            else
-            {
-                val.reset();
-                hasExploded = false;
-            }
+            val = v;
+            hasExploded = (depth >= 4);
         },
         [&s, &result, depth](const shared_ptr<Node>& n)
         {
             auto [val0, val1, boom] = explode(n, depth + 1);
-            auto& [val, hasExploded] = result;
-            val.reset();
+            auto& [_not_used_, hasExploded] = result;
             hasExploded = boom;
-            if (hasExploded && val0 && val1)
-                s = 0u;
+            if (hasExploded && val0 && val1) // if n is an exploded pair with two literals
+                s = 0u; // replace with 0 literal
         }
     }, s);
 
@@ -177,10 +165,10 @@ static inline tuple<shared_ptr<Node>, bool> split(const shared_ptr<Node>& d)
 {
     auto [val0, hasSplit0] = split((*d)[0]);
     
-    if (!hasSplit0)
-        return split((*d)[1]);
-
-    return {val0, hasSplit0};
+    if (hasSplit0)
+        return {val0, hasSplit0};
+        
+    return split((*d)[1]);
 }
 
 static inline tuple<shared_ptr<Node>, bool> split(Single& s)
@@ -256,27 +244,8 @@ static inline shared_ptr<Node> reduce(const shared_ptr<Node>& n)
 
     do
     {
-        do
-        {
-            explodeResult = explode(n, 0);
-
-            // if (wasExploded)
-            // {
-            //     cout << "E ";
-            //     print(root);
-            //     cout << '\n';
-            // }
-        } while (wasExploded);
-
+        do { explodeResult = explode(n, 0); } while (wasExploded);
         splitResult = split(n);
-
-        // if (wasSplit)
-        // {
-        //     cout << "S ";
-        //     print(root);
-        //     cout << '\n';
-        // }
-
     } while (wasSplit);
 
     return n;
@@ -346,7 +315,6 @@ int main()
             {
             case '[':
             {
-                //cout << c;
                 auto node = make_shared<Node>();
                 if (current)
                 {
@@ -363,14 +331,12 @@ int main()
             }
             case ',':
             {
-                //cout << c;
                 assert(!isSecond.top());
                 isSecond.top() = true;
                 break;
             }
             case ']':
             {
-                //cout << c;
                 current = current->parent.lock();
                 assert(isSecond.top());
                 isSecond.pop();
@@ -387,7 +353,6 @@ int main()
             case '8':
             case '9':
             {
-                //cout << c;
                 (*current)[isSecond.top()] = Number(static_cast<unsigned>(c - '0'));
                 break;
             }
@@ -401,29 +366,14 @@ int main()
 
     root = accumulate(begin(numbers), end(numbers), shared_ptr<Node>{}, [](auto prev, auto n)
     {
-        // cout << "  ";
-        // print(prev);
-        // cout << '\n';
-        // cout << "+ ";
-        // print(n);
-        // cout << '\n';
         return reduce(copy(add(prev, n)));
     });
-
-    // cout << "= ";
-    // print(root);
-    // cout << '\n';
 
     cout << "M " << magnitude(root);
     cout << '\n';
 
-    // for (const auto& n : numbers)
-    // {
-    //     print(n);
-    //     cout << '\n';
-    // }
-
     unsigned maxSum = 0u;
+
     for (const auto& a : numbers)
     {
         for (unsigned i = 0; i < numbers.size(); i++)
@@ -433,36 +383,13 @@ int main()
             if (a.get() == b.get())
                 continue;
             
-            // cout << "A ";
-            // print(a);
-            // cout << '\n';
-            // cout << "B ";
-            // print(b);
-            // cout << '\n';
             auto c = add(a, b);
-            // cout << "C ";
-            // print(c);
             auto cr = reduce(copy(c));
-            // cout << '\n';
-            // cout << "CR ";
-            // print(cr);
             auto cm = magnitude(cr);
-            // cout << '\n';
-            // cout << "CM ";
-            // cout << cm;
             auto d = add(b, a);
-            // cout << '\n';
-            // cout << "D ";
-            // print(d);
             auto dr = reduce(copy(d));
-            // cout << '\n';
-            // cout << "DR ";
-            // print(dr);
             auto dm = magnitude(dr);
-            // cout << '\n';
-            // cout << "DM ";
-            // cout << dm;
-            // cout << '\n';
+
             maxSum = max(maxSum, max(cm, dm));
         }
     }
