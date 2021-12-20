@@ -1,7 +1,9 @@
+#include <algorithm>
 #include <array>
 #include <cassert>
 #include <fstream>
 #include <iostream>
+#include <numeric>
 #include <memory>
 #include <optional>
 #include <stack>
@@ -43,6 +45,8 @@ static inline void print(const Single& s)
 
 static inline void print(const shared_ptr<Node>& d)
 {
+    if (!d) return;
+
     cout << '[';
     print((*d)[0]);
     cout << ',';
@@ -52,7 +56,11 @@ static inline void print(const shared_ptr<Node>& d)
 
 static inline shared_ptr<Node> add(const shared_ptr<Node>& a, const shared_ptr<Node>& b)
 {
+    if (!a) return b;
+    if (!b) return a;
+
     auto node = make_shared<Node>();
+
     a->parent = node;
     b->parent = node;
     (*node)[0] = a;
@@ -238,23 +246,98 @@ static inline unsigned magnitude(Single& s)
     return result;
 }
 
+static inline shared_ptr<Node> reduce(const shared_ptr<Node>& n)
+{
+    tuple<Number, Number, bool> explodeResult;
+    auto& [val0, val1, wasExploded] = explodeResult;
+
+    tuple<shared_ptr<Node>, bool> splitResult;
+    auto& [node, wasSplit] = splitResult;
+
+    do
+    {
+        do
+        {
+            explodeResult = explode(n, 0);
+
+            // if (wasExploded)
+            // {
+            //     cout << "E ";
+            //     print(root);
+            //     cout << '\n';
+            // }
+        } while (wasExploded);
+
+        splitResult = split(n);
+
+        // if (wasSplit)
+        // {
+        //     cout << "S ";
+        //     print(root);
+        //     cout << '\n';
+        // }
+
+    } while (wasSplit);
+
+    return n;
+}
+
+static inline Single copy(const Single& s);
+
+static inline shared_ptr<Node> copy(const shared_ptr<Node>& n)
+{
+    shared_ptr<Node> result = make_shared<Node>();
+    
+    (*result)[0] = copy((*n)[0]);
+    if (holds_alternative<shared_ptr<Node>>((*result)[0]))
+        get<shared_ptr<Node>>((*result)[0])->parent = result;
+
+    (*result)[1] = copy((*n)[1]);
+    if (holds_alternative<shared_ptr<Node>>((*result)[1]))
+        get<shared_ptr<Node>>((*result)[1])->parent = result;
+    
+    return result;
+}
+
+static inline Single copy(const Single& s)
+{
+    assert(s.index() != variant_npos);
+
+    Single result;
+    
+    visit(overloaded
+    {
+        [&result](auto v)
+        {
+            result = v;
+        },
+        [&result](const shared_ptr<Node>& n)
+        {
+            result = copy(n);
+        }
+    }, s);
+
+    return result;
+}
+
 }
 
 int main()
 {
     using namespace aoc;
 
-    ifstream inputFile("input.txt");
+    ifstream inputFile("test13.txt");
     if (!inputFile.is_open())
         return -1;
 
-    shared_ptr<Node> root;
+    vector<shared_ptr<Node>> numbers;
     stack<bool> isSecond;
-    bool wasAdded = false;
+    shared_ptr<Node> root;
     
     string line;
     while (getline(inputFile, line, '\n'))
     {
+        shared_ptr<Node> row;
         shared_ptr<Node> current;
         
         for (auto c : line)
@@ -272,7 +355,7 @@ int main()
                 }
                 else
                 {
-                    root = root ? add(root, node) : node;
+                    row = node;
                 }
                 current = node;
                 isSecond.push(false);
@@ -313,59 +396,79 @@ int main()
             }
         }
 
-        //cout << '\n';
-
-        if (wasAdded)
-            cout << "+ ";
-        else
-            cout << "  ";
-
-        print(root);
-        cout << '\n';
-
-        wasAdded = true;
-
-        tuple<Number, Number, bool> explodeResult;
-        auto& [val0, val1, wasExploded] = explodeResult;
-
-        tuple<shared_ptr<Node>, bool> splitResult;
-        auto& [node, wasSplit] = splitResult;
-
-        do
-        {
-            do
-            {
-                explodeResult = explode(root, 0);
-
-                // if (wasExploded)
-                // {
-                //     cout << "E ";
-                //     print(root);
-                //     cout << '\n';
-                // }
-            } while (wasExploded);
-
-            splitResult = split(root);
-
-            // if (wasSplit)
-            // {
-            //     cout << "S ";
-            //     print(root);
-            //     cout << '\n';
-            // }
-
-        } while (wasSplit);
-
-        if (wasAdded)
-        {
-            cout << "= ";
-            print(root);
-            cout << '\n';
-        }
-
-        cout << "M " << magnitude(root);
-        cout << '\n';
+        numbers.emplace_back(row);
     }
+
+    root = accumulate(begin(numbers), end(numbers), shared_ptr<Node>{}, [](auto prev, auto n)
+    {
+        // cout << "  ";
+        // print(prev);
+        // cout << '\n';
+        // cout << "+ ";
+        // print(n);
+        // cout << '\n';
+        return reduce(copy(add(prev, n)));
+    });
+
+    // cout << "= ";
+    // print(root);
+    // cout << '\n';
+
+    cout << "M " << magnitude(root);
+    cout << '\n';
+
+    // for (const auto& n : numbers)
+    // {
+    //     print(n);
+    //     cout << '\n';
+    // }
+
+    unsigned maxSum = 0u;
+    for (const auto& a : numbers)
+    {
+        for (unsigned i = 0; i < numbers.size(); i++)
+        {
+            const auto& b = *(begin(numbers) + i);
+
+            if (a.get() == b.get())
+                continue;
+            
+            // cout << "A ";
+            // print(a);
+            // cout << '\n';
+            // cout << "B ";
+            // print(b);
+            // cout << '\n';
+            auto c = add(a, b);
+            // cout << "C ";
+            // print(c);
+            auto cr = reduce(copy(c));
+            // cout << '\n';
+            // cout << "CR ";
+            // print(cr);
+            auto cm = magnitude(cr);
+            // cout << '\n';
+            // cout << "CM ";
+            // cout << cm;
+            auto d = add(b, a);
+            // cout << '\n';
+            // cout << "D ";
+            // print(d);
+            auto dr = reduce(copy(d));
+            // cout << '\n';
+            // cout << "DR ";
+            // print(dr);
+            auto dm = magnitude(dr);
+            // cout << '\n';
+            // cout << "DM ";
+            // cout << dm;
+            // cout << '\n';
+            maxSum = max(maxSum, max(cm, dm));
+        }
+    }
+
+    cout << "MS " << maxSum;
+    cout << '\n';
     
     return 0;
 }
