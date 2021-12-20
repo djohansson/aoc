@@ -101,19 +101,27 @@ static inline tuple<Number, Number, bool> explode(const shared_ptr<Node>& d, uns
 {
     auto [val0, hasExploded0] = explode((*d)[0], depth);
 
-    if (hasExploded0 && val0 && holds_alternative<Number>((*d)[0]) && holds_alternative<Number>((*d)[1]))
+    if (hasExploded0 && val0 && holds_alternative<Number>((*d)[0]))
     {
         auto [val1, hasExploded1] = explode((*d)[1], depth);
-        assert(hasExploded0 && hasExploded1);
-        explodeAddDown(*d, val0.value(), true);
-        explodeAddDown(*d, val1.value(), false);
-        return {val0, val1, true};
+        
+        if (hasExploded1 && val1 && holds_alternative<Number>((*d)[1]))
+        {
+            assert(hasExploded0 && hasExploded1);
+            
+            explodeAddDown(*d, val0.value(), true);
+            explodeAddDown(*d, val1.value(), false);
+
+            return {val0, val1, true};
+        }
+        
+        return {{}, {}, hasExploded0 || hasExploded1};
     }
 
     if (!hasExploded0)
     {
         auto [val1, hasExploded1] = explode((*d)[1], depth);
-        return {{}, val1, hasExploded1};
+        return {{}, {}, hasExploded1};
     }
 
     return {{}, {}, hasExploded0};
@@ -202,13 +210,41 @@ static inline tuple<shared_ptr<Node>, bool> split(Single& s)
     return result;
 }
 
+static inline unsigned magnitude(Single& s);
+
+static inline unsigned magnitude(const shared_ptr<Node>& d)
+{
+    return 3 * magnitude((*d)[0]) + 2 * magnitude((*d)[1]);
+}
+
+static inline unsigned magnitude(Single& s)
+{
+    assert(s.index() != variant_npos);
+
+    unsigned result = 0;
+    
+    visit(overloaded
+    {
+        [&result](auto v)
+        {
+            result = v.value();
+        },
+        [&result](const shared_ptr<Node>& n)
+        {
+            result = magnitude(n);
+        }
+    }, s);
+
+    return result;
+}
+
 }
 
 int main()
 {
     using namespace aoc;
 
-    ifstream inputFile("test11.txt");
+    ifstream inputFile("input.txt");
     if (!inputFile.is_open())
         return -1;
 
@@ -297,25 +333,28 @@ int main()
 
         do
         {
-            explodeResult = explode(root, 0);
-
-            if (wasExploded)
+            do
             {
-                cout << "E ";
-                print(root);
-                cout << '\n';
-            }
+                explodeResult = explode(root, 0);
+
+                // if (wasExploded)
+                // {
+                //     cout << "E ";
+                //     print(root);
+                //     cout << '\n';
+                // }
+            } while (wasExploded);
 
             splitResult = split(root);
 
-            if (wasSplit)
-            {
-                cout << "S ";
-                print(root);
-                cout << '\n';
-            }
+            // if (wasSplit)
+            // {
+            //     cout << "S ";
+            //     print(root);
+            //     cout << '\n';
+            // }
 
-        } while (wasExploded || wasSplit);
+        } while (wasSplit);
 
         if (wasAdded)
         {
@@ -323,6 +362,9 @@ int main()
             print(root);
             cout << '\n';
         }
+
+        cout << "M " << magnitude(root);
+        cout << '\n';
     }
     
     return 0;
