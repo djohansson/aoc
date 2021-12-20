@@ -326,7 +326,7 @@ int main()
 {
     using namespace aoc;
 
-    ifstream inputFile("test13.txt");
+    ifstream inputFile("input.txt");
     if (!inputFile.is_open())
         return -1;
 
