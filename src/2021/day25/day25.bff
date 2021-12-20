@@ -1,0 +1,32 @@
+#once
+
+{
+    .Day25_ObjectList =
+    [
+        Using(.ObjectListCommon)
+
+        .Name = 'day25'
+        .ProjectParentFolderName = '2021'
+        
+        .ObjectListCompilerOptions = .CompilerOptionsCpp
+        .CompilerInputPath = '$BuildRootPath$/src/$ProjectParentFolderName$/$Name$'
+    ]
+
+    .Day25_Executable =
+    [
+        Using(.ExecutableCommon)
+
+        .Name = 'day25'
+        .ProjectParentFolderName = '2021'
+        
+        .LocalDebuggerWorkingDirectory = '$BuildRootPath$/src/$ProjectParentFolderName$/$Name$'
+
+        .DependencyObjectLists =
+        {
+            .Day25_ObjectList,
+        }
+        .ExecutableLinkerOptions = .LinkerOptionsCpp
+    ]
+
+    ^BuildTargets + .Day25_Executable
+}
