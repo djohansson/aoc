@@ -1,6 +1,8 @@
 #include <iostream>
 #include <optional>
 #include <limits>
+#include <set>
+#include <utility>
 
 namespace aoc
 {
@@ -48,8 +50,8 @@ int main()
 
     auto findMaxY = []()
     {
+        set<pair<int, int>> velocities;
         int result = numeric_limits<int>::min();
-        unsigned count = 0;
         State initial = cx_initial;
         
         for (int vy = (cx_ymin - 1); vy < 1000; ++vy)
@@ -63,7 +65,7 @@ int main()
                 State s = initial;
                 int maxy = numeric_limits<int>::min();
 
-                while (++count)
+                while (true)
                 {
                     step(s);
 
@@ -74,6 +76,7 @@ int main()
 
                     if (s.px <= cx_xmax && s.px >= cx_xmin && s.py <= cx_ymax && s.py >= cx_ymin)
                     {
+                        velocities.emplace(make_pair(initial.vx, initial.vy));
                         result = max(result, maxy);
 
                         cout << "Found valid trajectory, max y: " << maxy << ", ";
@@ -83,12 +86,13 @@ int main()
             }
         }
 
-        return result;
+        return make_pair(result, move(velocities));
     };
 
-    auto result = findMaxY();
+    auto [result, velocities] = findMaxY();
 
     cout << "\nResult: " << result;
+    cout << "\nCount: " << velocities.size();
     
     return 0;
 }
