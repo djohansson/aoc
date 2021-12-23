@@ -1,23 +1,27 @@
 #include <algorithm>
 #include <array>
+#include <chrono>
 #include <cstdint>
 #include <fstream>
 #include <iostream>
-#include <set>
 #include <string>
+#include <utility>
+//#include <unordered_set>
+#include <robin_hood.h>
 
 namespace aoc
 {
 
 using namespace std;
-
+using namespace std::chrono;
+using namespace robin_hood;
 class Grid
 {
 public:
 
-    Grid(const string& algorithm, bool infiniteValue = false)
+    Grid(const string& algorithm, bool borderValue = false)
      : myAlgorithm(algorithm)
-     , myInfiniteValue(infiniteValue)
+     , myBorderValue(borderValue)
     {}
     Grid(const Grid& other) = delete;
     Grid(Grid&& other) noexcept
@@ -25,8 +29,8 @@ public:
     , myAlgorithm(exchange(other.myAlgorithm, {}))
     , myMin(exchange(other.myMin, {}))
     , myMax(exchange(other.myMax, {}))
-    , myInfiniteValue(exchange(other.myInfiniteValue, {}))
-     {}
+    , myBorderValue(exchange(other.myBorderValue, {}))
+    { }
 
     Grid& operator=(Grid&& other) noexcept
     {
@@ -36,7 +40,7 @@ public:
             myAlgorithm = exchange(other.myAlgorithm, {});
             myMin = exchange(other.myMin, {});
             myMax = exchange(other.myMax, {});
-            myInfiniteValue = exchange(other.myInfiniteValue, {});
+            myBorderValue = exchange(other.myBorderValue, {});
         }
 
         return *this;
@@ -44,7 +48,7 @@ public:
 
     void put(int16_t x, int16_t y)
     {
-        auto [it, result]  = myData.insert(key(x, y));
+        auto [it, result]  = myData.emplace(key(x, y));
 
         if (result)
         {
@@ -58,7 +62,7 @@ public:
     bool get(int16_t x, int16_t y) const
     {
         if (x < myMin[0] || x > myMax[0] || y < myMin[1] || y > myMax[1])
-            return myInfiniteValue;
+            return myBorderValue;
 
         if (myData.find(key(x, y)) != myData.cend())
             return true;
@@ -91,7 +95,7 @@ public:
 
     void cycle()
     {
-        Grid next(myAlgorithm, myAlgorithm[myInfiniteValue ? 0b111111111 : 0] == '#');
+        Grid next(myAlgorithm, myAlgorithm[myBorderValue ? myAlgorithm.size() - 1 : 0] == '#');
 
         for (auto yIt = myMin[1]-1; yIt <= myMax[1]+1; ++yIt)
             for (auto xIt = myMin[0]-1; xIt <= myMax[0]+1; ++xIt)
@@ -103,13 +107,13 @@ public:
 
     void print() const
     {
-        cout << "\nSize: (" << myMax[0] - myMin[0] << ',' << myMax[1] - myMin[1] << ')';
+        cout << "\nsize: (" << myMax[0] - myMin[0] << ',' << myMax[1] - myMin[1] << ')';
         
         // for (auto y = myMin[1] - 3; y <= myMax[1] + 3; ++y, cout << '\n')
         //     for (auto x = myMin[0] - 3; x <= myMax[0] + 3; ++x)
         //         cout << (get(x, y) ? '#' : '.');
 
-        cout << "\nCount: " << count();
+        cout << "\ncount: " << count();
     }
 
 private:
@@ -121,11 +125,11 @@ private:
         return yKey | xKey;
     }
 
-    set<uint32_t> myData;
+    unordered_set<uint32_t> myData;
     string myAlgorithm;
     array<int16_t, 2> myMin = { 0, 0 };
     array<int16_t, 2> myMax = { -1, -1 };
-    bool myInfiniteValue = false;
+    bool myBorderValue = false;
 };
 
 }
@@ -133,6 +137,8 @@ private:
 int main()
 {
     using namespace aoc;
+
+    auto parseStart = high_resolution_clock::now();
 
     ifstream inputFile("input.txt");
     if (!inputFile.is_open())
@@ -170,13 +176,29 @@ int main()
         }
     }
 
+    auto parseEnd = high_resolution_clock::now();
+
+    cout << "parse: " << duration_cast<microseconds>(parseEnd - parseStart).count() << '\n';
+
+    auto runStart = high_resolution_clock::now();
+
     image->print();
 
     for (unsigned i = 0; i < 50; i++)
     {
+        auto cycleStart = high_resolution_clock::now();
+
         image->cycle();
         image->print();
+
+        auto cycleEnd = high_resolution_clock::now();
+
+        cout << "\ncycle: " << duration_cast<microseconds>(cycleEnd - cycleStart).count() << " microseconds";
     }
+
+    auto runEnd = high_resolution_clock::now();
+
+    cout << "\ntime: " << duration_cast<microseconds>(runEnd - runStart).count() << " microseconds";
 
     return 0;
 }
