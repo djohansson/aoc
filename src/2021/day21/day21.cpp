@@ -1,11 +1,14 @@
-#include <algorithm>
+#include <cassert>
+#include <cstdint>
 #include <iostream>
-#include <queue>
+//#include <unordered_set>
+
+#include <robin_hood.h>
 
 namespace aoc
 {
 
-using namespace std;
+using namespace robin_hood;
 
 template <typename T>
 constexpr auto sizeof_array(const T& iarray)
@@ -13,7 +16,7 @@ constexpr auto sizeof_array(const T& iarray)
     return (sizeof(iarray) / sizeof(iarray[0]));
 }
 
-constexpr unsigned cx_starts[] = { 8, 6 };
+constexpr unsigned cx_starts[] = { 4, 8 };
 constexpr unsigned cx_outcomes[][2] =
 {
     { 3, 1 }, //{ 1, 1, 1 },
@@ -25,11 +28,41 @@ constexpr unsigned cx_outcomes[][2] =
     { 9, 1 }  //{ 3, 3, 3 }
 };
 
-struct Player
+struct GameState
 {
-    uint16_t player : 1;
-    uint16_t position : 4;
-    uint16_t score : 11;
+    union
+    {
+        struct Player
+        {
+            uint32_t score : 5;
+            uint32_t count : 22;
+            uint32_t position : 5;
+        } player[2];
+        uint64_t raw;
+    };
+    GameState(uint8_t p1pos, uint8_t p2pos)
+    : player{ {0, 1, p1pos}, {0, 1, p2pos} }
+    { }
+    GameState(const GameState& other)
+    : raw(other.raw)
+    { }
+    inline GameState& operator=(const GameState& other) { raw = other.raw; return *this; }
+    inline bool operator==(const GameState& other) const { return raw == other.raw; }
+    //inline bool operator<(const GameState& other) const { return raw < other.raw; }
+};
+
+}
+
+namespace std
+{
+
+template<>
+struct hash<aoc::GameState>
+{
+    inline size_t operator()(const aoc::GameState& p) const noexcept
+    {
+        return p.raw;
+    }
 };
 
 }
@@ -38,42 +71,54 @@ int main()
 {
     using namespace aoc;
 
-    queue<Player> ps;
-    for (uint16_t i = 0; i < sizeof_array(cx_starts); i++)
-        ps.push(Player{i, uint16_t(cx_starts[i] - 1), 0});
+    unordered_set<GameState> gs[2];
 
-    uint64_t count = 0;
+    using namespace std;
+
+    //set<GameState> gs[2];
+    
+    gs[0].emplace(GameState(uint8_t(cx_starts[0] - 1), uint8_t(cx_starts[1] - 1)));
+
+    uint64_t rounds = 0;
     //uint8_t die = 0;
     uint64_t wins[2] = { 0ull, 0ull };
 
-    while (!ps.empty())
+    auto gIt = gs[0].begin();
+    while (gIt != gs[0].end())
     {
-        auto p = ps.front();
-        ps.pop();
+        auto& g = *gIt;
 
-        for (auto outcome = 0; outcome < sizeof(cx_outcomes); outcome++)
+        for (auto p = 0; p < 2; p++)
         {
-            auto pq = p;
-            // for (auto j = 0; j < 3; j++)
-            // {
-            //     count++;
-            //     //die = (die % 100) + 1;
-            //     die = cx_outcomes[outcome][j];
-            //     pq.position += die;
-            //     pq.position %= 10;
-            // }
-            count += 3;
-            pq.position += cx_outcomes[outcome][0];
-            pq.position %= 10;
-            pq.score += (pq.position + 1);
-            if (pq.score >= 21)
-                wins[pq.player] += cx_outcomes[outcome][1];
-            else
-                ps.push(pq);
+            for (auto o = 0; o < sizeof_array(cx_outcomes); o++)
+            {
+                auto gp = g;
+                gp.player[p].position += cx_outcomes[o][0];
+                gp.player[p].position %= 10;
+                gp.player[p].score += (gp.player[p].position + 1);
+                gp.player[p].count *= cx_outcomes[o][1];
+                if (gp.player[p].score >= 21)
+                {
+                    wins[p] += gp.player[p].count;
+
+                    // cout << "p" << p << " wins: " << wins[p] << 
+                    //     ", score: " << gp.player[p].score << ", count: " << gp.player[p].count << '\n';
+                }
+                else
+                {
+                    gs[1].emplace(move(gp));
+                }
+            }
         }
 
-        if (count % 300000 == 0)
-            cout << count << '\n';
+        if (++gIt == gs[0].end())
+        {
+            gs[0].clear();
+            swap(gs[0], gs[1]);
+            gIt = gs[0].begin();
+
+            cout << "round: " << ++rounds << ", set size: " << gs[0].size() << '\n';
+        }
     }
 
     cout << wins[0] << '\n';
