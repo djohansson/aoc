@@ -276,7 +276,7 @@ int main()
 {
     using namespace aoc;
 
-    ifstream inputFile("test.txt");
+    ifstream inputFile("test3.txt");
     if (!inputFile.is_open())
         return -1;
 
@@ -316,7 +316,7 @@ int main()
             continue;
 
         grid.apply(command);
-        grid.print();
+        //grid.print();
 
         cout << "grid size: " << grid.size() << '\n';
         cout << "init region count: " << grid.size(cx_initRegion) << '\n';
