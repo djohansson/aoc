@@ -12,7 +12,7 @@ constexpr auto sizeof_array(const T& iarray)
     return (sizeof(iarray) / sizeof(iarray[0]));
 }
 
-constexpr unsigned cx_starts[] = { 4, 8 };
+constexpr unsigned cx_starts[] = { 8, 6 };
 constexpr unsigned cx_outcomes[][2] =
 {
     { 3, 1 }, //{ 1, 1, 1 },
@@ -41,22 +41,21 @@ struct GameState
     { }
 };
 
-static void quantumRound(uint8_t p, uint64_t count, const GameState& gs, uint64_t (&wins)[2], uint64_t& round)
+static void quantumRound(uint8_t player, uint64_t count, const GameState& gs, uint64_t (&wins)[2])
 {
     for (auto o = 0; o < sizeof_array(cx_outcomes); o++)
     {
+        auto q = cx_outcomes[o][1] * count;
         auto gp(gs);
-        gp.player[p].position += cx_outcomes[o][0];
-        gp.player[p].position %= 10;
-        gp.player[p].score += (gp.player[p].position + 1);
-        if (gp.player[p].score >= 21)
-        {
-            wins[p] += cx_outcomes[o][1] * count;
-        }
+
+        gp.player[player].position += cx_outcomes[o][0];
+        gp.player[player].position %= 10;
+        gp.player[player].score += (gp.player[player].position + 1);
+
+        if (gp.player[player].score >= 21)
+            wins[player] += q;
         else
-        {
-            quantumRound((p + 1) % 2, cx_outcomes[o][1] * count, gp, wins, ++round);
-        }
+            quantumRound((player + 1) & 1, q, gp, wins);
     }
 }
 
@@ -68,9 +67,8 @@ int main()
     
     GameState gs(uint8_t(cx_starts[0] - 1), uint8_t(cx_starts[1] - 1));
     uint64_t wins[2] = { 0ull, 0ull };
-    uint64_t round = 0;
 
-    quantumRound(0, 1, gs, wins, round);
+    quantumRound(0, 1, gs, wins);
 
     cout << wins[0] << '\n';
     cout << wins[1] << '\n';
