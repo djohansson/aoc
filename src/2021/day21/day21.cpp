@@ -1,14 +1,10 @@
-#include <cassert>
 #include <cstdint>
 #include <iostream>
-//#include <unordered_set>
-
-#include <robin_hood.h>
 
 namespace aoc
 {
 
-using namespace robin_hood;
+using namespace std;
 
 template <typename T>
 constexpr auto sizeof_array(const T& iarray)
@@ -30,96 +26,51 @@ constexpr unsigned cx_outcomes[][2] =
 
 struct GameState
 {
-    union
+    struct Player
     {
-        struct Player
-        {
-            uint32_t score : 5;
-            uint32_t count : 22;
-            uint32_t position : 5;
-        } player[2];
-        uint64_t raw;
-    };
+        uint8_t score;
+        uint8_t position;
+    } player[2];
+    
     GameState(uint8_t p1pos, uint8_t p2pos)
-    : player{ {0, 1, p1pos}, {0, 1, p2pos} }
+    : player{{0, p1pos}, {0, p2pos}}
     { }
+    
     GameState(const GameState& other)
-    : raw(other.raw)
+    : player{other.player[0], other.player[1]}
     { }
-    inline GameState& operator=(const GameState& other) { raw = other.raw; return *this; }
-    inline bool operator==(const GameState& other) const { return raw == other.raw; }
-    //inline bool operator<(const GameState& other) const { return raw < other.raw; }
 };
 
-}
-
-namespace std
+static void quantumRound(uint8_t p, uint64_t count, const GameState& gs, uint64_t (&wins)[2], uint64_t& round)
 {
-
-template<>
-struct hash<aoc::GameState>
-{
-    inline size_t operator()(const aoc::GameState& p) const noexcept
+    for (auto o = 0; o < sizeof_array(cx_outcomes); o++)
     {
-        return p.raw;
+        auto gp(gs);
+        gp.player[p].position += cx_outcomes[o][0];
+        gp.player[p].position %= 10;
+        gp.player[p].score += (gp.player[p].position + 1);
+        if (gp.player[p].score >= 21)
+        {
+            wins[p] += cx_outcomes[o][1] * count;
+        }
+        else
+        {
+            quantumRound((p + 1) % 2, cx_outcomes[o][1] * count, gp, wins, ++round);
+        }
     }
-};
+}
 
 }
 
 int main()
 {
     using namespace aoc;
-
-    unordered_set<GameState> gs[2];
-
-    using namespace std;
-
-    //set<GameState> gs[2];
     
-    gs[0].emplace(GameState(uint8_t(cx_starts[0] - 1), uint8_t(cx_starts[1] - 1)));
-
-    uint64_t rounds = 0;
-    //uint8_t die = 0;
+    GameState gs(uint8_t(cx_starts[0] - 1), uint8_t(cx_starts[1] - 1));
     uint64_t wins[2] = { 0ull, 0ull };
+    uint64_t round = 0;
 
-    auto gIt = gs[0].begin();
-    while (gIt != gs[0].end())
-    {
-        auto& g = *gIt;
-
-        for (auto p = 0; p < 2; p++)
-        {
-            for (auto o = 0; o < sizeof_array(cx_outcomes); o++)
-            {
-                auto gp = g;
-                gp.player[p].position += cx_outcomes[o][0];
-                gp.player[p].position %= 10;
-                gp.player[p].score += (gp.player[p].position + 1);
-                gp.player[p].count *= cx_outcomes[o][1];
-                if (gp.player[p].score >= 21)
-                {
-                    wins[p] += gp.player[p].count;
-
-                    // cout << "p" << p << " wins: " << wins[p] << 
-                    //     ", score: " << gp.player[p].score << ", count: " << gp.player[p].count << '\n';
-                }
-                else
-                {
-                    gs[1].emplace(move(gp));
-                }
-            }
-        }
-
-        if (++gIt == gs[0].end())
-        {
-            gs[0].clear();
-            swap(gs[0], gs[1]);
-            gIt = gs[0].begin();
-
-            cout << "round: " << ++rounds << ", set size: " << gs[0].size() << '\n';
-        }
-    }
+    quantumRound(0, 1, gs, wins, round);
 
     cout << wins[0] << '\n';
     cout << wins[1] << '\n';
