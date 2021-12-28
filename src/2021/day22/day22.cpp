@@ -3,7 +3,6 @@
 #include <cassert>
 #include <cstdint>
 #include <fstream>
-#include <functional>
 #include <iostream>
 #include <iterator>
 #include <numeric>
@@ -60,25 +59,45 @@ public:
         using pointer = T*;
         using reference = T&;
 
-        BoundsIterator()
-        { }
         BoundsIterator(const Bounds& bounds)
         : myBounds(bounds)
-        , myPos(std::get<0>(bounds))
+        , myPos(std::get<0>(myBounds))
         { }
+
         BoundsIterator(const Bounds& bounds, const Coord& pos)
         : myBounds(bounds)
         , myPos(pos)
         { }
-        BoundsIterator(const BoundsIterator& it)
-        : myBounds(it.bounds)
-        , myPos(std::get<0>(it.bounds))
+
+        BoundsIterator(const BoundsIterator& other)
+        : myBounds(other.bounds)
+        , myPos(std::get<0>(myBounds))
         { }
+        
+        BoundsIterator(BoundsIterator&& other)
+        : myBounds(exchange(other.bounds, {}))
+        , myPos(std::get<0>(myBounds))
+        { }
+
+        BoundsIterator& operator=(const BoundsIterator& other)
+        {
+            myBounds = other.bounds;
+            myPos = std::get<0>(myBounds);
+            return *this;
+        }
+
+        BoundsIterator& operator=(BoundsIterator&& other)
+        {
+            myBounds = exchange(other.bounds, {});
+            myPos = std::get<0>(myBounds);
+            return *this;
+        }
 
         bool operator==(const BoundsIterator& other) const
         {
             return myBounds == other.myBounds && myPos == other.myPos;
         }
+
         bool operator!=(const BoundsIterator& other) const
         {
             return !(*this == other);
@@ -99,8 +118,18 @@ public:
             const auto& [bmin, bmax] = myBounds;
 
             assert(myPos.has_value());
+
+            if (!myPos.has_value())
+                return *this;
+
             assert(myPos.value() >= bmin);
             assert(myPos.value() <= bmax);
+
+            if (bmin == bmax)
+            {
+                myPos.reset();
+                return *this;
+            }
             
             size_t d = 0;
             for (; d < myPos.value().size(); d++)
@@ -108,23 +137,24 @@ public:
                 auto range = bmax[d] - bmin[d];
                 auto shiftToZero = myPos.value()[d] - bmin[d];
                 auto next = ++shiftToZero;
-                
-                if (next >= range)
-                    continue;
-                
                 auto rest = next % range;
                 auto shiftBack = rest + bmin[d];
 
                 myPos.value()[d] = shiftBack;
-                
+
+                if (next >= range)
+                    continue;
+
                 break;
             }
 
-            if (myPos.value() >= bmax)
+            if (myPos.value() <= bmin || myPos.value() >= bmax)
                 myPos.reset();
 
             return *this;
         }
+
+        bool valid() const { return myPos.has_value(); }
 
     private:
 
@@ -134,9 +164,10 @@ public:
 
     Grid() = default;
     Grid(const Grid& other) = delete;
+    
     Grid(Grid&& other) noexcept
     : myData(exchange(other.myData, {}))
-    {}
+    { }
 
     Grid& operator=(Grid&& other) noexcept
     {
@@ -149,35 +180,36 @@ public:
     template<typename ...Ts>
     void set(Ts... args) { set(Coord{args...}); }
     void set(const Coord& coord) { myData.emplace(coord); }
+    void set(const Bounds& bounds)
+    {
+        BoundsIterator bIt(bounds);
+        while (bIt.valid())
+        {
+            set(bIt->value());
+            ++bIt;
+        }
+    }
 
     template<typename ...Ts>
     void clear(Ts... args) { clear(Coord{args...}); }
     void clear(const Coord& coord) { myData.erase(coord); }
+    void clear(const Bounds& bounds)
+    {
+        BoundsIterator bIt(bounds);
+        while (bIt.valid())
+        {
+            clear(bIt->value());
+            ++bIt;
+        }
+    }
 
     void apply(const Command& command)
     {
         const auto& [op, bounds] = command;
-        const auto& [bmin, bmax] = bounds;
-
-        function<void(const Coord&)> fcn;
         if (op == Operation::Fill)
-            fcn = [this](const Coord& c){ set(c); };
+            set(bounds);
         else
-            fcn = [this](const Coord& c){ clear(c); };
-
-        BoundsIterator bIt(bounds), bEnd(bounds, bmax);
-
-        while (bIt != bEnd)
-        {
-            fcn(bIt->value());
-            ++bIt;
-        }
-
-        // for (auto x = bmin[0]; x < bmax[0]; x++)
-        //     for (auto y = bmin[1]; y < bmax[1]; y++)
-        //         for (auto z = bmin[2]; z < bmax[2]; z++)
-        //             fcn(Coord{x, y, z});
-
+            clear(bounds);
     }
 
     template<typename ...Ts>
@@ -238,7 +270,7 @@ int main()
         {
             auto coordStr = split(b, '=');
             bmin[i] = stoi(coordStr[1].substr(0, coordStr[1].find_first_of('.')));
-            bmax[i] = stoi(coordStr[1].substr(coordStr[1].find_last_of('.')));
+            bmax[i] = stoi(coordStr[1].substr(coordStr[1].find_last_of('.') + 1));
             i++;
         }
     }
@@ -246,9 +278,10 @@ int main()
     for (const auto& command : commands)
     {
         grid.apply(command);
+        cout << "grid size: " << grid.size() << '\n';
     }
 
-    cout << grid.size() << '\n';
+    cout.flush();
 
     return 0;
 }
