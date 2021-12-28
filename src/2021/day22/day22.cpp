@@ -5,11 +5,14 @@
 #include <fstream>
 #include <iostream>
 #include <iterator>
+#include <limits>
 #include <set>
 #include <sstream>
 #include <string>
 #include <tuple>
+#include <type_traits>
 //#include <unordered_set>
+#include <utility>
 #include <vector>
 
 //#include <robin_hood.h>
@@ -38,13 +41,43 @@ static vector<string> split(const string& s, char delim)
     return elems;
 }
 
+namespace detail
+{
+
+template<size_t Size, typename T, size_t... Indexes>
+constexpr auto make_array_n_impl(T&& value, index_sequence<Indexes...>)
+{
+    return array<decay_t<T>, Size>{ (static_cast<void>(Indexes), value)..., forward<T>(value) };
+}
+
+} // namespace detail
+
+template<typename T>
+constexpr auto make_array_n(integral_constant<size_t, 0>, T&&)
+{
+    return array<decay_t<T>, 0>{};
+}
+
+template<size_t Size, typename T>
+constexpr auto make_array_n(integral_constant<size_t, Size>, T&& value)
+{
+    return detail::make_array_n_impl<Size>(forward<T>(value), make_index_sequence<Size - 1>{});
+}
+
+template<size_t Size, typename T>
+constexpr auto make_array_n(T&& value)
+{
+    return make_array_n(integral_constant<size_t, Size>{}, forward<T>(value));
+}
+
 template<typename T, uint8_t N>
 class Grid
 {
 public:
 
     using Coord = array<T, N>;
-    using Bounds = tuple<array<T, N>, array<T, N>>;
+    static constexpr Coord cx_invalidCoord = make_array_n<N>(numeric_limits<T>::min());
+    using Bounds = tuple<Coord, Coord>;
     enum class Operation { Fill, Clear };
     using Command = tuple<Operation, Bounds>;
 
@@ -114,13 +147,21 @@ public:
 
         BoundsIterator& operator++()
         {
+            if (!valid())
+            {
+                assert(false);
+                return *this;
+            }
+
             const auto& [bmin, bmax] = myBounds;
-
-            assert(myPos >= bmin);
-            assert(myPos <= bmax);
-
             if (bmin == bmax)
                 return *this;
+
+            if (myPos == bmax)
+            {
+                myPos = cx_invalidCoord;
+                return *this;
+            }
 
             size_t d = 0;
             for (; d < myPos.size(); d++)
@@ -140,6 +181,15 @@ public:
             }
 
             return *this;
+        }
+
+        bool valid() const 
+        {
+            const auto& [bmin, bmax] = myBounds;
+            if (myPos > bmax || myPos < bmin)
+                return false;
+
+            return true;
         }
 
     private:
@@ -168,14 +218,12 @@ public:
     void put(const Coord& coord) { myData.emplace(coord); }
     void put(const Bounds& bounds)
     {
-        const auto& [bmin, bmax] = bounds;
         BoundsIterator bIt(bounds);
-        do
+        while (bIt.valid())
         {
             put(*bIt);
             ++bIt;
-        } while (*bIt != bmax);
-        put(*bIt);
+        }
     }
 
     template<typename ...Ts>
@@ -183,14 +231,12 @@ public:
     void clear(const Coord& coord) { myData.erase(coord); }
     void clear(const Bounds& bounds)
     {
-        const auto& [bmin, bmax] = bounds;
         BoundsIterator bIt(bounds);
-        do
+        while (bIt.valid())
         {
             clear(*bIt);
             ++bIt;
-        } while (*bIt != bmax);
-        clear(*bIt);
+        }
     }
 
     void apply(const Command& command)
@@ -216,14 +262,12 @@ public:
     auto size(const Bounds& bounds)
     {
         size_t result = 0;
-        const auto& [bmin, bmax] = bounds;
         BoundsIterator bIt(bounds);
-        do
+        while (bIt.valid())
         {
             result += get(*bIt);
             ++bIt;
-        } while (*bIt != bmax);
-        result += get(*bIt);
+        }
         
         return result;
     }
