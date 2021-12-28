@@ -5,12 +5,11 @@
 #include <fstream>
 #include <iostream>
 #include <iterator>
-#include <numeric>
-#include <optional>
 #include <set>
 #include <sstream>
 #include <string>
 #include <tuple>
+//#include <unordered_set>
 #include <vector>
 
 //#include <robin_hood.h>
@@ -103,12 +102,12 @@ public:
             return !(*this == other);
         }
 
-        const optional<Coord>& operator*() const
+        const Coord& operator*() const
         {
             return myPos;
         }
 
-        const optional<Coord>* operator->() const
+        const Coord* operator->() const
         {
             return &myPos;
         }
@@ -117,30 +116,22 @@ public:
         {
             const auto& [bmin, bmax] = myBounds;
 
-            assert(myPos.has_value());
-
-            if (!myPos.has_value())
-                return *this;
-
-            assert(myPos.value() >= bmin);
-            assert(myPos.value() <= bmax);
+            assert(myPos >= bmin);
+            assert(myPos <= bmax);
 
             if (bmin == bmax)
-            {
-                myPos.reset();
                 return *this;
-            }
-            
+
             size_t d = 0;
-            for (; d < myPos.value().size(); d++)
+            for (; d < myPos.size(); d++)
             {
-                auto range = bmax[d] - bmin[d];
-                auto shiftToZero = myPos.value()[d] - bmin[d];
+                auto range = bmax[d] - bmin[d] + 1;
+                auto shiftToZero = myPos[d] - bmin[d];
                 auto next = ++shiftToZero;
                 auto rest = next % range;
                 auto shiftBack = rest + bmin[d];
 
-                myPos.value()[d] = shiftBack;
+                myPos[d] = shiftBack;
 
                 if (next >= range)
                     continue;
@@ -148,18 +139,13 @@ public:
                 break;
             }
 
-            if (myPos.value() <= bmin || myPos.value() >= bmax)
-                myPos.reset();
-
             return *this;
         }
-
-        bool valid() const { return myPos.has_value(); }
 
     private:
 
         const Bounds& myBounds;
-        optional<Coord> myPos;
+        Coord myPos;
     };
 
     Grid() = default;
@@ -178,16 +164,18 @@ public:
     }
 
     template<typename ...Ts>
-    void set(Ts... args) { set(Coord{args...}); }
-    void set(const Coord& coord) { myData.emplace(coord); }
-    void set(const Bounds& bounds)
+    void put(Ts... args) { put(Coord{args...}); }
+    void put(const Coord& coord) { myData.emplace(coord); }
+    void put(const Bounds& bounds)
     {
+        const auto& [bmin, bmax] = bounds;
         BoundsIterator bIt(bounds);
-        while (bIt.valid())
+        do
         {
-            set(bIt->value());
+            put(*bIt);
             ++bIt;
-        }
+        } while (*bIt != bmax);
+        put(*bIt);
     }
 
     template<typename ...Ts>
@@ -195,19 +183,21 @@ public:
     void clear(const Coord& coord) { myData.erase(coord); }
     void clear(const Bounds& bounds)
     {
+        const auto& [bmin, bmax] = bounds;
         BoundsIterator bIt(bounds);
-        while (bIt.valid())
+        do
         {
-            clear(bIt->value());
+            clear(*bIt);
             ++bIt;
-        }
+        } while (*bIt != bmax);
+        clear(*bIt);
     }
 
     void apply(const Command& command)
     {
         const auto& [op, bounds] = command;
         if (op == Operation::Fill)
-            set(bounds);
+            put(bounds);
         else
             clear(bounds);
     }
@@ -223,8 +213,47 @@ public:
     }
 
     auto size() const { return myData.size(); }
+    auto size(const Bounds& bounds)
+    {
+        size_t result = 0;
+        const auto& [bmin, bmax] = bounds;
+        BoundsIterator bIt(bounds);
+        do
+        {
+            result += get(*bIt);
+            ++bIt;
+        } while (*bIt != bmax);
+        result += get(*bIt);
+        
+        return result;
+    }
+
+    auto print()
+    {
+        for (const auto& coord : myData)
+        {
+            for (auto c : coord)
+                cout << c << ',';
+
+            cout << '\b';
+            cout << ' ';
+            cout << '\n';
+        }
+    }
 
 private:
+
+    // struct CoordHash
+    // {
+    //     size_t operator()(const Coord& coord) const
+    //     {
+    //         size_t result = 0;
+    //         for (auto c : coord)
+    //             result ^= hash<typename Coord::value_type>{}(c) + 0x9e3779b9 + (result << 6) + (result >> 2);
+
+    //         return result;
+    //     }   
+    // };
 
     // static uint64_t key(const Coord& coord)
     // {
@@ -236,7 +265,9 @@ private:
     //     return result;
     // }
 
-    std::set<Coord> myData;
+    set<Coord> myData;
+    //robin_hood::unordered_set<Coord, CoordHash> myData;
+    //unordered_set<Coord, CoordHash> myData;
 };
 
 }
@@ -249,9 +280,10 @@ int main()
     if (!inputFile.is_open())
         return -1;
 
-    using Grid3i16 = Grid<int16_t, 3>;
-    Grid3i16 grid;
-    vector<Grid3i16::Command> commands;
+    using Grid3i32 = Grid<int32_t, 3>;
+    Grid3i32 grid;
+    vector<Grid3i32::Command> commands;
+    constexpr auto cx_initRegion = Grid3i32::Bounds{{-50, -50 -50}, {50, 50, 50}};
 
     string line;
     while (getline(inputFile, line, '\n'))
@@ -260,9 +292,9 @@ int main()
         auto& [bmin, bmax] = bounds;
         auto commandStr = split(line, ' ');
         if (commandStr.front() == "on")
-            op = Grid3i16::Operation::Fill;
+            op = Grid3i32::Operation::Fill;
         else if (commandStr.front() == "off")
-            op = Grid3i16::Operation::Clear;
+            op = Grid3i32::Operation::Clear;
 
         auto boundsStr = split(commandStr.back(), ',');
         unsigned i = 0;
@@ -277,8 +309,17 @@ int main()
 
     for (const auto& command : commands)
     {
+        auto& [op, bounds] = command;
+        auto& [bmin, bmax] = bounds;
+        if (any_of(begin(bmin), end(bmin), [](auto n) { return n < -50; }) ||
+            any_of(begin(bmax), end(bmax), [](auto n) { return n > 50; }))
+            continue;
+
         grid.apply(command);
+        grid.print();
+
         cout << "grid size: " << grid.size() << '\n';
+        cout << "init region count: " << grid.size(cx_initRegion) << '\n';
     }
 
     cout.flush();
