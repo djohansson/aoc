@@ -4,8 +4,6 @@
 namespace aoc
 {
 
-using namespace std;
-
 template <typename T>
 constexpr auto sizeof_array(const T& iarray)
 {
@@ -41,7 +39,7 @@ struct GameState
     { }
 };
 
-static void quantumRound(uint8_t player, uint64_t count, const GameState& gs, uint64_t (&wins)[2])
+static void quantumRound(GameState gs, uint8_t player, uint64_t count, uint64_t (&wins)[2])
 {
     for (auto o = 0; o < sizeof_array(cx_outcomes); o++)
     {
@@ -55,7 +53,7 @@ static void quantumRound(uint8_t player, uint64_t count, const GameState& gs, ui
         if (gp.player[player].score >= 21)
             wins[player] += q;
         else
-            quantumRound((player + 1) & 1, q, gp, wins);
+            quantumRound(gp, (player + 1) & 1, q, wins);
     }
 }
 
@@ -68,10 +66,10 @@ int main()
     GameState gs(uint8_t(cx_starts[0] - 1), uint8_t(cx_starts[1] - 1));
     uint64_t wins[2] = { 0ull, 0ull };
 
-    quantumRound(0, 1, gs, wins);
+    quantumRound(gs, 0, 1, wins);
 
-    cout << wins[0] << '\n';
-    cout << wins[1] << '\n';
+    std::cout << wins[0] << '\n';
+    std::cout << wins[1] << '\n';
 
     return 0;
 }
