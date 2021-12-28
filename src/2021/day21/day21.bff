@@ -9,7 +9,6 @@
         .ProjectParentFolderName = '2021'
         
         .ObjectListCompilerOptions = .CompilerOptionsCpp
-            + ' -I $BuildRootPath$/../robin-hood-hashing/src/include'
         .CompilerInputPath = '$BuildRootPath$/src/$ProjectParentFolderName$/$Name$'
     ]
 
