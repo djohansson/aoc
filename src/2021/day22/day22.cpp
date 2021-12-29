@@ -468,12 +468,11 @@ int main()
 {
     using namespace aoc;
 
-    ifstream inputFile("test3.txt");
+    ifstream inputFile("input.txt");
     if (!inputFile.is_open())
         return -1;
 
-    using Grid3i32 = Grid<int32_t, 3>;
-    Grid3i32 grid;
+    Grid<int32_t, 3> grid;
     vector<Command<int32_t, 3>> commands;
     constexpr auto cx_initRegion = Bounds<int32_t, 3>{{-50, -50, -50}, {50, 50, 50}};
 
