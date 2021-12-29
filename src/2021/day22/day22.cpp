@@ -1,21 +1,18 @@
-#include <algorithm>
 #include <array>
-#include <cassert>
 #include <cstdint>
 #include <fstream>
 #include <iostream>
 #include <iterator>
 #include <limits>
-#include <set>
+//#include <set>
 #include <sstream>
 #include <string>
 #include <tuple>
 #include <type_traits>
-//#include <unordered_set>
 #include <utility>
 #include <vector>
 
-//#include <robin_hood.h>
+#include <robin_hood.h>
 
 namespace aoc
 {
@@ -82,6 +79,34 @@ static constexpr Coord<T, N> cx_minCoord = make_array_n<N>(numeric_limits<T>::mi
 template<typename T, uint8_t N>
 static constexpr Coord<T, N> cx_maxCoord = make_array_n<N>(numeric_limits<T>::max());
 
+template <class T>
+static void hash_combine(size_t& seed, const T& v)
+{
+    hash<T> hasher;
+    constexpr size_t cx_kMul = 0x9ddfea08eb382d69ull;
+    size_t a = (hasher(v) ^ seed) * cx_kMul;
+    a ^= (a >> 47);
+    size_t b = (seed ^ a) * cx_kMul;
+    b ^= (b >> 47);
+    seed = b * cx_kMul;
+}
+
+template<typename T, uint8_t N>
+struct CoordHash
+{
+    size_t operator()(const Coord<T, N>& coord) const
+    {
+        size_t result = 0;
+
+        for (auto c : coord)
+            hash_combine(result, c);
+
+        return result;
+    }
+};
+
+template<typename T, uint8_t N>
+class BoundsIterator;
 template <typename T, uint8_t N>
 class Bounds
 {
@@ -92,30 +117,30 @@ public:
     using value_type = tuple<Coord<T, N>, Coord<T, N>>;
 	
     constexpr Bounds() noexcept
-		: myBounds{cx_maxCoord<T, N>, cx_lowestCoord<T, N>}
+		: myData{cx_maxCoord<T, N>, cx_lowestCoord<T, N>}
     { }
 
     constexpr Bounds(const Bounds<T, N>& other) noexcept
-		: myBounds{other.myBounds}
+		: myData{other.myData}
 	{ }
     
     template <typename U = T>
 	constexpr Bounds(const Bounds<U, N>& other) noexcept
-		: myBounds{static_cast<value_type>(other.myBounds)}
+		: myData{static_cast<value_type>(other.myData)}
 	{ }
 
     constexpr Bounds(const Coord<T, N>& min, const Coord<T, N>& max) noexcept
-		: myBounds{min, max}
+		: myData{min, max}
     { }
 
     constexpr Bounds(Coord<T, N>&& min, Coord<T, N>&& max) noexcept
-		: myBounds{forward<Coord<T, N>>(min), forward<Coord<T, N>>(max)}
+		: myData{forward<Coord<T, N>>(min), forward<Coord<T, N>>(max)}
     { }
 
     Bounds& operator=(const Bounds& other)
     {
         if (this != &other)
-            myBounds = other.myBounds;
+            myData = other.myData;
 
         return *this;
     }
@@ -123,7 +148,7 @@ public:
     Bounds& operator=(Bounds&& other)
     {
         if (this != &other)
-            myBounds = forward(other.myBounds);
+            myData = forward<Bounds>(other.myData);
         
         return *this;
     }
@@ -138,18 +163,28 @@ public:
 		return !static_cast<bool>(*this);
 	}
 
-    auto& min() { return get<0>(myBounds); };
-    const auto& min() const { return get<0>(myBounds); };
+    BoundsIterator<T, N> begin() const
+    {
+        return BoundsIterator<T, N>(*this);
+    }
 
-    auto& max() { return get<1>(myBounds); };
-    const auto& max() const { return get<1>(myBounds); };
+    BoundsIterator<T, N> end() const
+    {
+        return BoundsIterator<T, N>();
+    }
 
-    auto& bounds() { return myBounds; };
-    const auto& bounds() const { return myBounds; };
+    auto& min() { return get<0>(myData); };
+    const auto& min() const { return get<0>(myData); };
+
+    auto& max() { return get<1>(myData); };
+    const auto& max() const { return get<1>(myData); };
+
+    auto& data() { return myData; };
+    const auto& data() const { return myData; };
 
 private:
 
-    value_type myBounds;
+    value_type myData;
 };
 
 template<typename T, uint8_t N>
@@ -179,7 +214,7 @@ public:
     { }
 
     constexpr BoundsIterator(Bounds<T, N>&& bounds) noexcept
-    : myBounds(forward(bounds))
+    : myBounds(forward<Bounds<T, N>>(bounds))
     , myPos(myBounds.min())
     { }
 
@@ -189,26 +224,26 @@ public:
     { }
 
     constexpr BoundsIterator(Bounds<T, N>&& bounds, Coord<T, N>&& start) noexcept
-    : myBounds(forward(bounds))
-    , myPos(forward(start))
+    : myBounds(forward<Bounds<T, N>>(bounds))
+    , myPos(forward<Coord<T, N>>(start))
     { }
 
     constexpr BoundsIterator(const BoundsIterator& other) noexcept
-    : myBounds(other.bounds)
-    , myPos(myBounds.min())
+    : myBounds(other.myBounds)
+    , myPos(other.myPos)
     { }
     
     constexpr BoundsIterator(BoundsIterator&& other) noexcept
-    : myBounds(forward(other.bounds))
-    , myPos(myBounds.min())
+    : myBounds(forward<Bounds<T, N>>(other.myBounds))
+    , myPos(forward<Coord<T, N>>(other.myPos))
     { }
 
     BoundsIterator& operator=(const BoundsIterator& other)
     {
         if (this != &other)
         {
-            myBounds = other.bounds;
-            myPos = myBounds.min();
+            myBounds = other.myBounds;
+            myPos = other.myPos;
         }
 
         return *this;
@@ -218,8 +253,8 @@ public:
     {
         if (this != &other)
         {
-            myBounds = forward(other.bounds);
-            myPos = myBounds.min();
+            myBounds = forward<Bounds<T, N>>(other.myBounds);
+            myPos = forward<Coord<T, N>>(other.myPos);
         }
 
         return *this;
@@ -265,17 +300,21 @@ public:
         return &myPos;
     }
 
+    BoundsIterator operator++(int)
+    {
+        auto result(*this);
+
+        ++(*this);
+        
+        return result;
+    }
+
     BoundsIterator& operator++()
     {
         if (!valid())
-        {
-            assert(false);
             return *this;
-        }
 
-        const auto& [bmin, bmax] = myBounds.bounds();
-        if (bmin == bmax)
-            return *this;
+        const auto& [bmin, bmax] = myBounds.data();
 
         if (myPos == bmax)
         {
@@ -306,7 +345,8 @@ public:
 
     bool valid() const 
     {
-        const auto& [bmin, bmax] = myBounds.bounds();
+        const auto& [bmin, bmax] = myBounds.data();
+
         if (myPos > bmax || myPos < bmin)
             return false;
 
@@ -325,9 +365,6 @@ class Grid : public Bounds<T, N>
 {
 public:
 
-    enum class Operation { Fill, Clear };
-    using Command = tuple<Operation, Bounds<T, N>>;
-
     Grid()
     : Bounds<T, N>(cx_minCoord<T, N>, cx_maxCoord<T, N>)
     { }
@@ -338,7 +375,7 @@ public:
     { }
     
     Grid(Grid&& other) noexcept
-    : Bounds<T, N>(forward(other))
+    : Bounds<T, N>(forward<Bounds<T, N>>(other))
     , myData(exchange(other.myData, {}))
     { }
 
@@ -367,103 +404,63 @@ public:
     template<typename ...Ts>
     void put(Ts... args) { put(Coord<T, sizeof...(Ts)>{args...}); }
     void put(const Coord<T, N>& coord) { myData.emplace(coord); }
-    void put(const Bounds<T, N>& bounds)
-    {
-        BoundsIterator<T, N> bIt(bounds);
-        while (bIt.valid())
-        {
-            put(*bIt);
-            ++bIt;
-        }
-    }
+    void put(const Bounds<T, N>& bounds) { for (const auto& c : bounds) put(c); }
 
     template<typename ...Ts>
     void clear(Ts... args) { clear(Coord<T, sizeof...(Ts)>{args...}); }
     void clear(const Coord<T, N>& coord) { myData.erase(coord); }
-    void clear(const Bounds<T, N>& bounds)
-    {
-        BoundsIterator<T, N> bIt(bounds);
-        while (bIt.valid())
-        {
-            clear(*bIt);
-            ++bIt;
-        }
-    }
-
-    void apply(const Command& command)
-    {
-        const auto& [op, bounds] = command;
-        if (op == Operation::Fill)
-            put(bounds);
-        else
-            clear(bounds);
-    }
+    void clear(const Bounds<T, N>& bounds) { for (const auto& c : bounds) clear(c); }
 
     template<typename ...Ts>
     bool get(Ts... args) const { return get(Coord<T, sizeof...(Ts)>{args...}); }
-    bool get(const Coord<T, N>& coord)
-    {
-        if (myData.find(coord) != myData.cend())
-            return true;
-        
-        return false;
-    }
+    bool get(const Coord<T, N>& coord) const { return myData.contains(coord); }
 
-    auto size() const { return myData.size(); }
-    auto size(const Bounds<T, N>& bounds)
+    auto size() const { return myData.size(); } const
+    auto size(const Bounds<T, N>& bounds) const
     {
         size_t result = 0;
-        BoundsIterator<T, N> bIt(bounds);
-        while (bIt.valid())
-        {
-            result += get(*bIt);
-            ++bIt;
-        }
-        
+
+        for (const auto& c : bounds)
+            result += get(c);
+
         return result;
     }
 
     auto print()
     {
-        for (const auto& coord : myData)
-        {
-            for (auto c : coord)
-                cout << c << ',';
+        cout << "load factor: " << myData.load_factor() << '\n';
+        // for (const auto& coord : myData)
+        // {
+        //     for (auto c : coord)
+        //         cout << c << ',';
 
-            cout << '\b';
-            cout << ' ';
-            cout << '\n';
-        }
+        //     cout << '\b';
+        //     cout << ' ';
+        //     cout << '\n';
+        // }
     }
 
 private:
-
-    // struct CoordHash
-    // {
-    //     size_t operator()(const Coord<T, N>& coord) const
-    //     {
-    //         size_t result = 0;
-    //         for (auto c : coord)
-    //             result ^= hash<typename Coord<T, N>::value_type>{}(c) + 0x9e3779b9 + (result << 6) + (result >> 2);
-
-    //         return result;
-    //     }   
-    // };
 
     // static uint64_t key(const Coord<T, N>& coord)
     // {
     //     constexpr size_t cx_valueBitCount = sizeof(T) * 8;
     //     uint64_t result = 0;
+
     //     for (size_t i = 0; i < coord.size(); i++)
     //         result |= (static_cast<uint64_t>(coord[i]) + (1 << (cx_valueBitCount - 1))) << (i * cx_valueBitCount);
         
     //     return result;
     // }
 
-    set<Coord<T, N>> myData;
-    //robin_hood::unordered_set<Coord<T, N>, CoordHash> myData;
-    //unordered_set<Coord, CoordHash> myData;
+    //set<Coord<T, N>> myData;
+    robin_hood::unordered_set<Coord<T, N>, CoordHash<T, N>> myData;
 };
+
+enum class Operation { Fill, Clear };
+
+template<typename T, uint8_t N>
+using Command = tuple<Operation, Bounds<T, N>>;
 
 }
 
@@ -477,19 +474,19 @@ int main()
 
     using Grid3i32 = Grid<int32_t, 3>;
     Grid3i32 grid;
-    vector<Grid3i32::Command> commands;
-    constexpr auto cx_initRegion = Bounds<int32_t, 3>{{-50, -50 -50}, {50, 50, 50}};
+    vector<Command<int32_t, 3>> commands;
+    constexpr auto cx_initRegion = Bounds<int32_t, 3>{{-50, -50, -50}, {50, 50, 50}};
 
     string line;
     while (getline(inputFile, line, '\n'))
     {
         auto& [op, bounds] = commands.emplace_back();
-        auto& [bmin, bmax] = bounds.bounds();
+        auto& [bmin, bmax] = bounds.data();
         auto commandStr = split(line, ' ');
         if (commandStr.front() == "on")
-            op = Grid3i32::Operation::Fill;
+            op = Operation::Fill;
         else if (commandStr.front() == "off")
-            op = Grid3i32::Operation::Clear;
+            op = Operation::Clear;
 
         auto boundsStr = split(commandStr.back(), ',');
         unsigned i = 0;
@@ -505,19 +502,22 @@ int main()
     for (const auto& command : commands)
     {
         const auto& [op, bounds] = command;
-        const auto& [bmin, bmax] = bounds.bounds();
-        if (any_of(begin(bmin), end(bmin), [](auto n) { return n < -50; }) ||
-            any_of(begin(bmax), end(bmax), [](auto n) { return n > 50; }))
+        const auto& [bmin, bmax] = bounds.data();
+        const auto& [wmin, wmax] = cx_initRegion.data();
+        if (bmin < wmin || bmax > wmax)
             continue;
 
-        grid.apply(command);
-        //grid.print();
+        if (op == Operation::Fill)
+            grid.put(bounds);
+        else if (op == Operation::Clear)
+            grid.clear(bounds);
+        else
+            return -1;
 
         cout << "grid size: " << grid.size() << '\n';
         cout << "init region count: " << grid.size(cx_initRegion) << '\n';
+        grid.print();
     }
-
-    cout.flush();
 
     return 0;
 }
