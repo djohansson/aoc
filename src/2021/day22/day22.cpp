@@ -71,81 +71,98 @@ constexpr auto make_array_n(T&& value)
 }
 
 template<typename T, uint8_t N>
+using Coord = array<T, N>;
+
+template<typename T, uint8_t N>
+using Bounds = tuple<Coord<T, N>, Coord<T, N>>;
+
+template<typename T, uint8_t N>
+static constexpr Coord<T, N> cx_invalidCoord = make_array_n<N>(numeric_limits<T>::min());
+
+template<typename T, uint8_t N>
 class Grid
 {
 public:
 
-    using Coord = array<T, N>;
-    static constexpr Coord cx_invalidCoord = make_array_n<N>(numeric_limits<T>::min());
-    using Bounds = tuple<Coord, Coord>;
     enum class Operation { Fill, Clear };
-    using Command = tuple<Operation, Bounds>;
-
-    class BoundsIterator
+    using Command = tuple<Operation, Bounds<T, N>>;
+    class Iterator
     {
     public:
     
         using iterator_category = forward_iterator_tag;
-        using value_type = T;
-        using difference_type = T;
-        using pointer = T*;
-        using reference = T&;
+        using value_type = Coord<T, N>;
+        using difference_type = value_type;
+        using pointer = value_type*;
+        using const_pointer = const value_type*;
+        using reference = value_type&;
+        using const_reference = const value_type&;
 
-        BoundsIterator(const Bounds& bounds)
+        Iterator(const Bounds<T, N>& bounds)
         : myBounds(bounds)
         , myPos(std::get<0>(myBounds))
         { }
 
-        BoundsIterator(const Bounds& bounds, const Coord& pos)
+        Iterator(const Bounds<T, N>& bounds, const Coord<T, N>& start)
         : myBounds(bounds)
-        , myPos(pos)
+        , myPos(start)
         { }
 
-        BoundsIterator(const BoundsIterator& other)
+        Iterator(const Iterator& other)
         : myBounds(other.bounds)
         , myPos(std::get<0>(myBounds))
         { }
         
-        BoundsIterator(BoundsIterator&& other)
+        Iterator(Iterator&& other)
         : myBounds(exchange(other.bounds, {}))
         , myPos(std::get<0>(myBounds))
         { }
 
-        BoundsIterator& operator=(const BoundsIterator& other)
+        Iterator& operator=(const Iterator& other)
         {
             myBounds = other.bounds;
             myPos = std::get<0>(myBounds);
             return *this;
         }
 
-        BoundsIterator& operator=(BoundsIterator&& other)
+        Iterator& operator=(Iterator&& other)
         {
             myBounds = exchange(other.bounds, {});
             myPos = std::get<0>(myBounds);
             return *this;
         }
 
-        bool operator==(const BoundsIterator& other) const
+        bool operator==(const Iterator& other) const
         {
             return myBounds == other.myBounds && myPos == other.myPos;
         }
 
-        bool operator!=(const BoundsIterator& other) const
+        bool operator!=(const Iterator& other) const
         {
             return !(*this == other);
         }
 
-        const Coord& operator*() const
+        reference& operator*()
         {
             return myPos;
         }
 
-        const Coord* operator->() const
+        const_reference& operator*() const
+        {
+            return myPos;
+        }
+
+        pointer* operator->()
         {
             return &myPos;
         }
 
-        BoundsIterator& operator++()
+        const_pointer* operator->() const
+        {
+            return &myPos;
+        }
+
+        Iterator& operator++()
         {
             if (!valid())
             {
@@ -159,7 +176,7 @@ public:
 
             if (myPos == bmax)
             {
-                myPos = cx_invalidCoord;
+                myPos = cx_invalidCoord<T, N>;
                 return *this;
             }
 
@@ -194,8 +211,8 @@ public:
 
     private:
 
-        const Bounds& myBounds;
-        Coord myPos;
+        const Bounds<T, N>& myBounds;
+        Coord<T, N> myPos;
     };
 
     Grid() = default;
@@ -214,11 +231,11 @@ public:
     }
 
     template<typename ...Ts>
-    void put(Ts... args) { put(Coord{args...}); }
-    void put(const Coord& coord) { myData.emplace(coord); }
-    void put(const Bounds& bounds)
+    void put(Ts... args) { put(Coord<T, sizeof...(Ts)>{args...}); }
+    void put(const Coord<T, N>& coord) { myData.emplace(coord); }
+    void put(const Bounds<T, N>& bounds)
     {
-        BoundsIterator bIt(bounds);
+        Iterator bIt(bounds);
         while (bIt.valid())
         {
             put(*bIt);
@@ -227,11 +244,11 @@ public:
     }
 
     template<typename ...Ts>
-    void clear(Ts... args) { clear(Coord{args...}); }
-    void clear(const Coord& coord) { myData.erase(coord); }
-    void clear(const Bounds& bounds)
+    void clear(Ts... args) { clear(Coord<T, sizeof...(Ts)>{args...}); }
+    void clear(const Coord<T, N>& coord) { myData.erase(coord); }
+    void clear(const Bounds<T, N>& bounds)
     {
-        BoundsIterator bIt(bounds);
+        Iterator bIt(bounds);
         while (bIt.valid())
         {
             clear(*bIt);
@@ -249,8 +266,8 @@ public:
     }
 
     template<typename ...Ts>
-    bool get(Ts... args) const { return get(Coord{args...}); }
-    bool get(const Coord& coord)
+    bool get(Ts... args) const { return get(Coord<T, sizeof...(Ts)>{args...}); }
+    bool get(const Coord<T, N>& coord)
     {
         if (myData.find(coord) != myData.cend())
             return true;
@@ -259,10 +276,10 @@ public:
     }
 
     auto size() const { return myData.size(); }
-    auto size(const Bounds& bounds)
+    auto size(const Bounds<T, N>& bounds)
     {
         size_t result = 0;
-        BoundsIterator bIt(bounds);
+        Iterator bIt(bounds);
         while (bIt.valid())
         {
             result += get(*bIt);
@@ -289,17 +306,17 @@ private:
 
     // struct CoordHash
     // {
-    //     size_t operator()(const Coord& coord) const
+    //     size_t operator()(const Coord<T, N>& coord) const
     //     {
     //         size_t result = 0;
     //         for (auto c : coord)
-    //             result ^= hash<typename Coord::value_type>{}(c) + 0x9e3779b9 + (result << 6) + (result >> 2);
+    //             result ^= hash<typename Coord<T, N>::value_type>{}(c) + 0x9e3779b9 + (result << 6) + (result >> 2);
 
     //         return result;
     //     }   
     // };
 
-    // static uint64_t key(const Coord& coord)
+    // static uint64_t key(const Coord<T, N>& coord)
     // {
     //     constexpr size_t cx_valueBitCount = sizeof(T) * 8;
     //     uint64_t result = 0;
@@ -309,8 +326,8 @@ private:
     //     return result;
     // }
 
-    set<Coord> myData;
-    //robin_hood::unordered_set<Coord, CoordHash> myData;
+    set<Coord<T, N>> myData;
+    //robin_hood::unordered_set<Coord<T, N>, CoordHash> myData;
     //unordered_set<Coord, CoordHash> myData;
 };
 
@@ -327,7 +344,7 @@ int main()
     using Grid3i32 = Grid<int32_t, 3>;
     Grid3i32 grid;
     vector<Grid3i32::Command> commands;
-    constexpr auto cx_initRegion = Grid3i32::Bounds{{-50, -50 -50}, {50, 50, 50}};
+    constexpr auto cx_initRegion = Bounds<int32_t, 3>{{-50, -50 -50}, {50, 50, 50}};
 
     string line;
     while (getline(inputFile, line, '\n'))
