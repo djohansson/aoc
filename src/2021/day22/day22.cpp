@@ -280,22 +280,22 @@ public:
         return !(*this == other);
     }
 
-    reference& operator*()
+    reference operator*()
     {
         return myPos;
     }
 
-    const_reference& operator*() const
+    const_reference operator*() const
     {
         return myPos;
     }
 
-    pointer* operator->()
+    pointer operator->()
     {
         return &myPos;
     }
 
-    const_pointer* operator->() const
+    const_pointer operator->() const
     {
         return &myPos;
     }
@@ -323,8 +323,7 @@ public:
             return *this;
         }
 
-        size_t d = 0;
-        for (; d < myPos.size(); d++)
+        for (size_t d = 0; d < myPos.size(); d++)
         {
             auto range = bmax[d] - bmin[d] + 1;
             auto shiftToZero = myPos[d] - bmin[d];
@@ -334,10 +333,8 @@ public:
 
             myPos[d] = shiftBack;
 
-            if (next >= range)
-                continue;
-
-            break;
+            if (next < range)
+                break;
         }
 
         return *this;
@@ -403,14 +400,13 @@ public:
 
     template<typename ...Ts>
     void put(Ts... args) { put(Coord<T, sizeof...(Ts)>{args...}); }
-    void put(const Coord<T, N>& coord) { myData.emplace(coord); }
-    void put(const Bounds<T, N>& bounds) { for (const auto& c : bounds) put(c); }
+    void put(const Coord<T, N>& coord) { myData.insert(coord); }
+    void put(Coord<T, N>&& coord) { myData.emplace(forward<Coord<T, N>>(coord)); }
 
     template<typename ...Ts>
     void clear(Ts... args) { clear(Coord<T, sizeof...(Ts)>{args...}); }
     void clear(const Coord<T, N>& coord) { myData.erase(coord); }
-    void clear(const Bounds<T, N>& bounds) { for (const auto& c : bounds) clear(c); }
-
+    
     template<typename ...Ts>
     bool get(Ts... args) const { return get(Coord<T, sizeof...(Ts)>{args...}); }
     bool get(const Coord<T, N>& coord) const { return myData.contains(coord); }
@@ -428,16 +424,15 @@ public:
 
     auto print()
     {
-        cout << "load factor: " << myData.load_factor() << '\n';
-        // for (const auto& coord : myData)
-        // {
-        //     for (auto c : coord)
-        //         cout << c << ',';
+        for (const auto& coord : myData)
+        {
+            for (auto c : coord)
+                cout << c << ',';
 
-        //     cout << '\b';
-        //     cout << ' ';
-        //     cout << '\n';
-        // }
+            cout << '\b';
+            cout << ' ';
+            cout << '\n';
+        }
     }
 
 private:
@@ -468,14 +463,13 @@ int main()
 {
     using namespace aoc;
 
-    ifstream inputFile("input.txt");
+    ifstream inputFile("test2.txt");
     if (!inputFile.is_open())
         return -1;
 
     Grid<int32_t, 3> grid;
     vector<Command<int32_t, 3>> commands;
-    constexpr auto cx_initRegion = Bounds<int32_t, 3>{{-50, -50, -50}, {50, 50, 50}};
-
+    
     string line;
     while (getline(inputFile, line, '\n'))
     {
@@ -501,21 +495,28 @@ int main()
     for (const auto& command : commands)
     {
         const auto& [op, bounds] = command;
+        constexpr auto cx_initRegion = Bounds<int32_t, 3>{{-50, -50, -50}, {50, 50, 50}};
         const auto& [bmin, bmax] = bounds.data();
         const auto& [wmin, wmax] = cx_initRegion.data();
         if (bmin < wmin || bmax > wmax)
             continue;
 
         if (op == Operation::Fill)
-            grid.put(bounds);
+        {
+            for (const auto& c : bounds)
+                grid.put(c);
+        }
         else if (op == Operation::Clear)
-            grid.clear(bounds);
-        else
-            return -1;
+        {
+            for (const auto& c : bounds)
+                grid.clear(c);
+        }
+        else return -1;
 
         cout << "grid size: " << grid.size() << '\n';
         cout << "init region count: " << grid.size(cx_initRegion) << '\n';
-        grid.print();
+        
+        //grid.print();
     }
 
     return 0;
