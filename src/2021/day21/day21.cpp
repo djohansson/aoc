@@ -4,11 +4,7 @@
 namespace aoc
 {
 
-template <typename T>
-constexpr auto sizeof_array(const T& iarray)
-{
-    return (sizeof(iarray) / sizeof(iarray[0]));
-}
+using namespace std;
 
 constexpr unsigned cx_starts[] = { 8, 6 };
 constexpr unsigned cx_outcomes[][2] =
@@ -41,7 +37,7 @@ struct GameState
 
 static void quantumRound(GameState gs, uint8_t player, uint64_t count, uint64_t (&wins)[2])
 {
-    for (auto o = 0; o < sizeof_array(cx_outcomes); o++)
+    for (auto o = 0; o < ssize(cx_outcomes); o++)
     {
         auto q = cx_outcomes[o][1] * count;
         auto gp(gs);
